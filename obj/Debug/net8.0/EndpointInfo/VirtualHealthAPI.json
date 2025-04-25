@@ -1,0 +1,294 @@
+{
+  "openapi": "3.0.1",
+  "info": {
+    "title": "VirtualHealthAPI",
+    "version": "1.0"
+  },
+  "paths": {
+    "/api/Medplum/create-profile-with-pcp-and-vitals": {
+      "post": {
+        "tags": [
+          "Medplum"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientProfileInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientProfileInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatientProfileInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/ingest-wearable-observations": {
+      "post": {
+        "tags": [
+          "Medplum"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WearableVitalsInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WearableVitalsInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/WearableVitalsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/current-observations/{patientId}": {
+      "get": {
+        "tags": [
+          "Medplum"
+        ],
+        "parameters": [
+          {
+            "name": "patientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/vitals-trend/{patientId}": {
+      "get": {
+        "tags": [
+          "Medplum"
+        ],
+        "parameters": [
+          {
+            "name": "patientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/patient-full-profile/{patientId}": {
+      "get": {
+        "tags": [
+          "Medplum"
+        ],
+        "parameters": [
+          {
+            "name": "patientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ConditionInput": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "nullable": true
+          },
+          "display": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PatientProfileInput": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "patientName": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          },
+          "birthDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ConditionInput"
+            },
+            "nullable": true
+          },
+          "pcp": {
+            "$ref": "#/components/schemas/PractitionerInput"
+          },
+          "vitals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VitalSignsInput"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "PractitionerInput": {
+        "type": "object",
+        "properties": {
+          "practitionerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "practitionerName": {
+            "type": "string",
+            "nullable": true
+          },
+          "firstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "lastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "gender": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "VitalSignsInput": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "nullable": true
+          },
+          "value": {
+            "type": "number",
+            "format": "double"
+          },
+          "unit": {
+            "type": "string",
+            "nullable": true
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "WearableVitalsInput": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "heartRate": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "systolic": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "diastolic": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "spo2": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "temperature": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "steps": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}

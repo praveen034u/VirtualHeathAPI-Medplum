@@ -1,0 +1,82 @@
+[
+  {
+    "ContainingType": "MedplumController",
+    "Method": "CreateWithVitals",
+    "RelativePath": "api/Medplum/create-profile-with-pcp-and-vitals",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "input",
+        "Type": "PatientProfileInput",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MedplumController",
+    "Method": "GetCurrentVitals",
+    "RelativePath": "api/Medplum/current-observations/{patientId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "patientId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MedplumController",
+    "Method": "IngestVitals",
+    "RelativePath": "api/Medplum/ingest-wearable-observations",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "input",
+        "Type": "VirtualHealthAPI.WearableVitalsInput",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MedplumController",
+    "Method": "GetFullProfile",
+    "RelativePath": "api/Medplum/patient-full-profile/{patientId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "patientId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "MedplumController",
+    "Method": "GetVitalsTrend",
+    "RelativePath": "api/Medplum/vitals-trend/{patientId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "patientId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  }
+]
