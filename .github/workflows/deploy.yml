@@ -1,0 +1,31 @@
+name: Build and Deploy to AWS ECS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build and Push Docker Image
+      run: |
+        docker build -t ${{ secrets.ECR_REPOSITORY_URI }}:latest .
+        docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+    - name: Deploy to Amazon ECS
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ecs-task-def.json
+        service: virtualhealth-task-service-jfocijec
+        cluster: virtual-health-cluster
+        wait-for-service-stability: true
