@@ -3,43 +3,19 @@
   "WorkspaceRootPath": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\patientprofileinput.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:patientprofileinput.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\ecs-task-def.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:ecs-task-def.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:dockerfile||{8B382828-6202-11D1-8870-0000F87579D2}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\prave\\AppData\\Roaming\\Microsoft\\UserSecrets\\f5911502-534a-429c-a8e9-c888a9d3a7e5\\secrets.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\medplumservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:medplumservice.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\practitionerinput.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:practitionerinput.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\controllers\\medplumcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:controllers\\medplumcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\vitaltrendresult.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:vitaltrendresult.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\wearablevitalsinput1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:wearablevitalsinput1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\observationresult.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:observationresult.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|c:\\sourcecode\\virtual-health\\medplumwrapperapi\\virtualhealth-api\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{5152ADCE-B101-457D-A4E1-57E552DFEE4B}|VirtualHealthAPI.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\.github\\workflows\\deploy.yml||{8B382828-6202-11D1-8870-0000F87579D2}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:.github\\workflows\\deploy.yml||{8B382828-6202-11D1-8870-0000F87579D2}"
     }
   ],
   "DocumentGroupContainers": [
@@ -49,12 +25,8 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 2,
           "Children": [
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
-            },
             {
               "$type": "Document",
               "DocumentIndex": 2,
@@ -63,120 +35,48 @@
               "RelativeDocumentMoniker": "..\\..\\..\\..\\Users\\prave\\AppData\\Roaming\\Microsoft\\UserSecrets\\f5911502-534a-429c-a8e9-c888a9d3a7e5\\secrets.json",
               "ToolTip": "C:\\Users\\prave\\AppData\\Roaming\\Microsoft\\UserSecrets\\f5911502-534a-429c-a8e9-c888a9d3a7e5\\secrets.json",
               "RelativeToolTip": "..\\..\\..\\..\\Users\\prave\\AppData\\Roaming\\Microsoft\\UserSecrets\\f5911502-534a-429c-a8e9-c888a9d3a7e5\\secrets.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-04-26T03:11:32.547Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 6,
-              "Title": "VitalTrendResult.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\VitalTrendResult.cs",
-              "RelativeDocumentMoniker": "VitalTrendResult.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\VitalTrendResult.cs",
-              "RelativeToolTip": "VitalTrendResult.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T06:26:05.02Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 8,
-              "Title": "ObservationResult.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\ObservationResult.cs",
-              "RelativeDocumentMoniker": "ObservationResult.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\ObservationResult.cs",
-              "RelativeToolTip": "ObservationResult.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T06:22:19.187Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
-              "Title": "WearableVitalsInput1.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\WearableVitalsInput1.cs",
-              "RelativeDocumentMoniker": "WearableVitalsInput1.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\WearableVitalsInput1.cs",
-              "RelativeToolTip": "WearableVitalsInput1.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAAFAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T06:11:34.013Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "PractitionerInput.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\PractitionerInput.cs",
-              "RelativeDocumentMoniker": "PractitionerInput.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\PractitionerInput.cs",
-              "RelativeToolTip": "PractitionerInput.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAuwAcAAAAnAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T06:01:53.379Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "PatientProfileInput.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\PatientProfileInput.cs",
-              "RelativeDocumentMoniker": "PatientProfileInput.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\PatientProfileInput.cs",
-              "RelativeToolTip": "PatientProfileInput.cs",
-              "ViewState": "AgIAAAQAAAAAAAAAAAAzwA4AAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T01:33:44.054Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "MedplumController.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Controllers\\MedplumController.cs",
-              "RelativeDocumentMoniker": "Controllers\\MedplumController.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Controllers\\MedplumController.cs",
-              "RelativeToolTip": "Controllers\\MedplumController.cs",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA8AAABUAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T01:05:10.199Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAAAUAAAAAAAAAAAAmwBsAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T01:01:07.359Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 3,
-              "Title": "MedplumService.cs",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\MedplumService.cs",
-              "RelativeDocumentMoniker": "MedplumService.cs",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\MedplumService.cs",
-              "RelativeToolTip": "MedplumService.cs",
-              "ViewState": "AgIAANYBAAAAAAAAAAAIwOoBAAASAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2025-04-25T01:00:23.74Z",
+              "WhenOpened": "2025-04-26T17:02:05.953Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
               "DocumentIndex": 1,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAADAAAAAAAAAA==",
+              "Title": "Dockerfile",
+              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Dockerfile",
+              "RelativeDocumentMoniker": "Dockerfile",
+              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\Dockerfile",
+              "RelativeToolTip": "Dockerfile",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAB0AAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2025-04-26T17:01:45.999Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ecs-task-def.json",
+              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\ecs-task-def.json",
+              "RelativeDocumentMoniker": "ecs-task-def.json",
+              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\ecs-task-def.json",
+              "RelativeToolTip": "ecs-task-def.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABUAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2025-04-25T00:59:04.727Z",
+              "WhenOpened": "2025-04-26T17:01:45.174Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "deploy.yml",
+              "DocumentMoniker": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\.github\\workflows\\deploy.yml",
+              "RelativeDocumentMoniker": ".github\\workflows\\deploy.yml",
+              "ToolTip": "C:\\SourceCode\\Virtual-health\\MedPlumWrapperAPI\\VirtualHealth-API\\.github\\workflows\\deploy.yml",
+              "RelativeToolTip": ".github\\workflows\\deploy.yml",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.003775|",
+              "WhenOpened": "2025-04-26T17:00:18.562Z",
               "EditorCaption": ""
             }
           ]

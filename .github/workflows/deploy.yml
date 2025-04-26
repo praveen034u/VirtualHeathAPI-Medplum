@@ -1,31 +1,47 @@
-name: Build and Deploy to AWS ECS
+name: Build and Deploy Virtual Health API to AWS ECS
 
 on:
   push:
     branches:
-      - main
+      - feature-praveen  # or whatever branch you want auto deploy on
 
 jobs:
   deploy:
+    name: Build, Push, and Deploy
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
 
-    - name: Build and Push Docker Image
-      run: |
-        docker build -t ${{ secrets.ECR_REPOSITORY_URI }}:latest .
-        docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Deploy to Amazon ECS
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ecs-task-def.json
-        service: virtualhealth-task-service-jfocijec
-        cluster: virtual-health-cluster
-        wait-for-service-stability: true
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ secrets.ECR_REPOSITORY_URI }}:latest .
+
+      - name: Push Docker image to ECR
+        run: |
+          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+
+      - name: Render Amazon ECS Task Definition
+        id: render-task-def
+        run: |
+          sed "s|ECR_IMAGE_URI|${{ secrets.ECR_REPOSITORY_URI }}:latest|g" ecs-task-def.json > ecs-task-def-rendered.json
+
+      - name: Deploy Amazon ECS Service
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ecs-task-def-rendered.json
+          service: ${{ secrets.ECS_SERVICE_NAME }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
