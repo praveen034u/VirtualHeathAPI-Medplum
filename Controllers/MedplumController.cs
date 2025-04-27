@@ -29,7 +29,7 @@ public class MedplumController : ControllerBase
     [HttpGet("current-observations/{patientId}")]
     public async Task<IActionResult> GetCurrentVitals(string patientId)
     {
-        var results = await _medplum.GetCurrentObservationsAsync(patientId);
+        var results = await _medplum.GetPatientObservationsAsync(patientId);
         return Ok(results);
     }
 

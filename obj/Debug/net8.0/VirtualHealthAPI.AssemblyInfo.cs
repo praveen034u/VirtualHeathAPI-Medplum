@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("VirtualHealthAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ee2156e2f18f7b2fcb0b4ea3e06c7349b7964159")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+12ac5248fa1023c4ecaca6166fc91e419fffa732")]
 [assembly: System.Reflection.AssemblyProductAttribute("VirtualHealthAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("VirtualHealthAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
