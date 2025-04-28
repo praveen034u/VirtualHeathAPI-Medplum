@@ -22,4 +22,18 @@
         public int? OxygenDesaturationEvents { get; set; }
         public DateTime? CollectedDateTime { get; set; }
     }
+
+   public class ProvidersReportedObservationsInput
+   {
+        public string PatientId { get; set; } = default!;
+        public int? Phq9Score { get; set; }
+        public string? PhysicalExamFinding { get; set; }
+        public string? SmokingStatus { get; set; }
+        public string? AlcoholUse { get; set; }
+        public string? Occupation { get; set; }
+        public string? ExerciseFrequency { get; set; }
+        public string? DietHabits { get; set; }
+        public DateTime? CollectedDateTime { get; set; }
+   }
+
 }

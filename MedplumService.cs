@@ -917,5 +917,523 @@ namespace VirtualHealthAPI
 
             return patientProfile;
         }
+
+        public async Task<string> SaveLabResultsAsync(LabResultsInput input)
+        {
+            var token = await GetAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var timestamp = input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o");
+
+            var observations = new List<object>();
+
+            // Helper to add lab Observation
+            void AddLabObservation(string loincCode, string display, double value, string unit)
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "laboratory", display = "Laboratory" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://loinc.org", code = loincCode, display = display }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueQuantity = new
+                    {
+                        value = value,
+                        unit = unit,
+                        system = "http://unitsofmeasure.org",
+                        code = unit
+                    }
+                });
+            }
+
+            // HbA1c
+            if (input.Hba1c.HasValue)
+                AddLabObservation("4548-4", "Hemoglobin A1c/Hemoglobin.total in Blood", input.Hba1c.Value, "%");
+
+            // Cholesterol Total
+            if (input.TotalCholesterol.HasValue)
+                AddLabObservation("2093-3", "Cholesterol [Mass/volume] in Serum or Plasma", input.TotalCholesterol.Value, "mg/dL");
+
+            // HDL
+            if (input.Hdl.HasValue)
+                AddLabObservation("2085-9", "HDL Cholesterol [Mass/volume] in Serum or Plasma", input.Hdl.Value, "mg/dL");
+
+            // LDL
+            if (input.Ldl.HasValue)
+                AddLabObservation("18262-6", "LDL Cholesterol [Mass/volume] in Serum or Plasma by calculation", input.Ldl.Value, "mg/dL");
+
+            // Triglycerides
+            if (input.Triglycerides.HasValue)
+                AddLabObservation("2571-8", "Triglyceride [Mass/volume] in Serum or Plasma", input.Triglycerides.Value, "mg/dL");
+
+            // Hemoglobin
+            if (input.Hemoglobin.HasValue)
+                AddLabObservation("718-7", "Hemoglobin [Mass/volume] in Blood", input.Hemoglobin.Value, "g/dL");
+
+            // WBC
+            if (input.Wbc.HasValue)
+                AddLabObservation("6690-2", "Leukocytes [#/volume] in Blood by Automated count", input.Wbc.Value, "10^3/uL");
+
+            foreach (var obs in observations)
+            {
+                var json = JsonSerializer.Serialize(obs);
+                var res = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
+                    new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+                res.EnsureSuccessStatusCode();
+            }
+
+            return $"Saved {observations.Count} lab results for Patient/{input.PatientId}.";
+        }
+
+        public async Task<string> SaveImagingResultAsync(ImagingResultInput input)
+        {
+            var token = await GetAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var timestamp = input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o");
+
+            var observation = new
+            {
+                resourceType = "Observation",
+                status = "final",
+                category = new[]
+                {
+            new
+            {
+                coding = new[]
+                {
+                    new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "imaging", display = "Imaging" }
+                }
+            }
+        },
+                code = new
+                {
+                    coding = new[]
+                    {
+                new { system = "http://loinc.org", code = input.LoincCode ?? "18748-4", display = input.ImagingType ?? "Radiology Study Observation" }
+            }
+                },
+                subject = new { reference = $"Patient/{input.PatientId}" },
+                effectiveDateTime = timestamp,
+                valueString = input.ResultSummary
+            };
+
+            var json = JsonSerializer.Serialize(observation);
+            var res = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
+                new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+            res.EnsureSuccessStatusCode();
+
+            return $"Saved imaging result for Patient/{input.PatientId}.";
+        }
+
+        public async Task<string> SaveProvidersReportedObservationsAsync(ProvidersReportedObservationsInput input)
+        {
+            var token = await GetAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var timestamp = input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o");
+
+            var observations = new List<object>();
+
+            // 1. Survey Response (PHQ-9 Depression Score)
+            if (input.Phq9Score.HasValue)
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "survey", display = "Survey" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://loinc.org", code = "44249-1", display = "PHQ-9 total score" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueQuantity = new
+                    {
+                        value = input.Phq9Score.Value,
+                        unit = "score",
+                        system = "http://unitsofmeasure.org",
+                        code = "{score}"
+                    }
+                });
+            }
+
+            // 2. Physical Exam Findings (e.g., Lung Sounds: Clear)
+            if (!string.IsNullOrEmpty(input.PhysicalExamFinding))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "exam", display = "Physical Exam" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://example.org/custom", code = "lung-sounds", display = "Lung Sounds" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.PhysicalExamFinding
+                });
+            }
+
+            // 3. Social History Observations (Smoking, Alcohol, Occupation)
+            if (!string.IsNullOrEmpty(input.SmokingStatus))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "social-history", display = "Social History" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://loinc.org", code = "72166-2", display = "Tobacco smoking status" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.SmokingStatus
+                });
+            }
+
+            if (!string.IsNullOrEmpty(input.AlcoholUse))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "social-history", display = "Social History" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://loinc.org", code = "74013-4", display = "Alcohol use" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.AlcoholUse
+                });
+            }
+
+            if (!string.IsNullOrEmpty(input.Occupation))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "social-history", display = "Social History" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://loinc.org", code = "11341-5", display = "Occupation" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.Occupation
+                });
+            }
+
+            // 4. Lifestyle Observations (Exercise, Diet)
+            if (!string.IsNullOrEmpty(input.ExerciseFrequency))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "activity", display = "Activity" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://example.org/custom", code = "exercise-frequency", display = "Exercise Frequency" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.ExerciseFrequency
+                });
+            }
+
+            if (!string.IsNullOrEmpty(input.DietHabits))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "activity", display = "Activity" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://example.org/custom", code = "diet-habits", display = "Diet Habits" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.DietHabits
+                });
+            }
+
+            // Post all observations
+            foreach (var obs in observations)
+            {
+                var json = JsonSerializer.Serialize(obs);
+                var res = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
+                    new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+                res.EnsureSuccessStatusCode();
+            }
+
+            return $"Saved {observations.Count} additional observations for Patient/{input.PatientId}.";
+        }
+
+        public async Task<Dictionary<string, List<ObservationSummary>>> GetProviderReportedObservationsByCategoryAsync(string patientId)
+        {
+            var token = await GetAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var categories = new List<string>
+    {
+        "vital-signs",
+        "social-history",
+        "activity",
+        "survey",
+        "exam" // custom for physical exams
+    };
+
+            var result = new Dictionary<string, List<ObservationSummary>>();
+
+            foreach (var category in categories)
+            {
+                var observations = new List<ObservationSummary>();
+
+                var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&category={category}&_sort=-date&_count=100");
+                if (!response.IsSuccessStatusCode)
+                {
+                    // If category not found (404), skip it
+                    continue;
+                }
+
+                var content = await response.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(content);
+
+                if (!jsonDoc.RootElement.TryGetProperty("entry", out var entries))
+                {
+                    result[category] = new List<ObservationSummary>();
+                    continue;
+                }
+
+                foreach (var entry in entries.EnumerateArray())
+                {
+                    var resource = entry.GetProperty("resource");
+                    var codingArray = resource.GetProperty("code").GetProperty("coding");
+                    var firstCoding = codingArray[0];
+                    var codeDisplay = firstCoding.GetProperty("display").GetString();
+                    var codeSystem = firstCoding.GetProperty("system").GetString();
+                    var codeValue = firstCoding.GetProperty("code").GetString();
+                    var effectiveDateTime = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+
+                    string value = "";
+                    if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
+                        value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
+                    else if (resource.TryGetProperty("valueString", out var valueString))
+                        value = valueString.GetString();
+                    else if (resource.TryGetProperty("valueInteger", out var valueInt))
+                        value = valueInt.GetInt32().ToString();
+
+                    observations.Add(new ObservationSummary
+                    {
+                        CodeDisplay = codeDisplay ?? "Unknown",
+                        CodeSystem = codeSystem ?? "",
+                        CodeValue = codeValue ?? "",
+                        Categories = category,
+                        Value = value,
+                        EffectiveDateTime = effectiveDateTime
+                    });
+                }
+
+                result[category] = observations;
+            }
+
+            return result;
+        }
+
+        public async Task<PatientLabResultsOutput> GetPatientLabResultsAsync(string patientId)
+        {
+            var token = await GetAccessTokenAsync();
+            var client = _httpClientFactory.CreateClient();
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var output = new PatientLabResultsOutput
+            {
+                GeneralLabs = new List<ObservationSummary>(),
+                ImagingResults = new List<ObservationSummary>()
+            };
+
+            // Fetch General Lab Results (category=laboratory)
+            var labResponse = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&category=laboratory&_sort=-date&_count=100");
+            if (labResponse.IsSuccessStatusCode)
+            {
+                var content = await labResponse.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(content);
+
+                if (jsonDoc.RootElement.TryGetProperty("entry", out var entries))
+                {
+                    foreach (var entry in entries.EnumerateArray())
+                    {
+                        var resource = entry.GetProperty("resource");
+                        output.GeneralLabs.Add(ParseObservation(resource, "laboratory"));
+                    }
+                }
+            }
+
+            // Fetch Imaging/Scan Results (category=imaging)
+            var imagingResponse = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&category=imaging&_sort=-date&_count=100");
+            if (imagingResponse.IsSuccessStatusCode)
+            {
+                var content = await imagingResponse.Content.ReadAsStringAsync();
+                var jsonDoc = JsonDocument.Parse(content);
+
+                if (jsonDoc.RootElement.TryGetProperty("entry", out var entries))
+                {
+                    foreach (var entry in entries.EnumerateArray())
+                    {
+                        var resource = entry.GetProperty("resource");
+                        output.ImagingResults.Add(ParseObservation(resource, "imaging"));
+                    }
+                }
+            }
+
+            return output;
+        }
+
+        // Helper to parse Observation resource
+        private ObservationSummary ParseObservation(JsonElement resource, string category)
+        {
+            var codingArray = resource.GetProperty("code").GetProperty("coding");
+            var firstCoding = codingArray[0];
+            var codeDisplay = firstCoding.GetProperty("display").GetString();
+            var codeSystem = firstCoding.GetProperty("system").GetString();
+            var codeValue = firstCoding.GetProperty("code").GetString();
+            var effectiveDateTime = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+
+            string value = "";
+            if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
+                value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
+            else if (resource.TryGetProperty("valueString", out var valueString))
+                value = valueString.GetString();
+            else if (resource.TryGetProperty("valueInteger", out var valueInt))
+                value = valueInt.GetInt32().ToString();
+
+            return new ObservationSummary
+            {
+                CodeDisplay = codeDisplay ?? "Unknown",
+                CodeSystem = codeSystem ?? "",
+                CodeValue = codeValue ?? "",
+                Categories = category,
+                Value = value,
+                EffectiveDateTime = effectiveDateTime
+            };
+        }
+
     }
- }
+}

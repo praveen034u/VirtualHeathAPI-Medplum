@@ -134,6 +134,12 @@ public enum ObservationFilterType
     Lifestyle
 }
 
+public class PatientLabResultsOutput
+{
+    public List<ObservationSummary> GeneralLabs { get; set; } = new();
+    public List<ObservationSummary> ImagingResults { get; set; } = new();
+}
+
 public class ObservationSummary
 {
     public string CodeDisplay { get; set; } = string.Empty;  // Example: Heart rate
@@ -150,4 +156,27 @@ public class VitalTrendResult
     public DateTime Timestamp { get; set; }
     public string Type { get; set; }
     public double Value { get; set; }
+}
+
+public class LabResultsInput
+{
+    public string PatientId { get; set; } = default!;
+    public double? Hba1c { get; set; }
+    public double? TotalCholesterol { get; set; }
+    public double? Hdl { get; set; }
+    public double? Ldl { get; set; }
+    public double? Triglycerides { get; set; }
+    public double? Hemoglobin { get; set; }
+    public double? Wbc { get; set; }
+    public DateTime? CollectedDateTime { get; set; }  // Optional timestamp
+}
+
+
+public class ImagingResultInput
+{
+    public string PatientId { get; set; } = default!;
+    public string? ImagingType { get; set; }  // Example: "Chest X-ray"
+    public string? LoincCode { get; set; }    // Example: "18748-4" (Chest X-ray Study)
+    public string ResultSummary { get; set; } = default!;  // Example: "No signs of pneumonia."
+    public DateTime? CollectedDateTime { get; set; }       // Optional
 }
