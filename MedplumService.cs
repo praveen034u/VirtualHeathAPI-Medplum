@@ -770,18 +770,23 @@ namespace VirtualHealthAPI
             return vitals;
         }
 
-
-        public async Task<PatientProfileInput> GetPatientFullProfileAsync(string patientId)
+        public async Task<PatientProfileInput> GetPatientFullProfileByEmailAsync(string email)
         {
             var token = await GetAccessTokenAsync();
             var client = _httpClientFactory.CreateClient();
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
-            // 1. Fetch Patient Resource
-            var patientRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Patient/{patientId}");
-            patientRes.EnsureSuccessStatusCode();
-            var patientJson = JsonDocument.Parse(await patientRes.Content.ReadAsStringAsync()).RootElement;
+            // 1. Search Patient by Email
+            var searchRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Patient?telecom=email%7C{Uri.EscapeDataString(email)}");
+            searchRes.EnsureSuccessStatusCode();
+            var searchJson = JsonDocument.Parse(await searchRes.Content.ReadAsStringAsync()).RootElement;
+
+            if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
+                throw new Exception($"No patient found with email {email}");
+
+            var patientJson = entries[0].GetProperty("resource");
+            var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
 
             var patientProfile = new PatientProfileInput
             {
@@ -807,10 +812,10 @@ namespace VirtualHealthAPI
                 }
             }
 
-            // 3. Fetch Emergency Contact (first entry)
+            // 3. Fetch Emergency Contact
             if (patientJson.TryGetProperty("contact", out var contacts))
             {
-                var emergency = contacts[0]; // Assuming first is emergency contact
+                var emergency = contacts[0]; // Assuming first contact is emergency
                 if (emergency.TryGetProperty("name", out var contactName))
                 {
                     patientProfile.EmergencyContactFirstName = contactName.GetProperty("given")[0].GetString() ?? "";
@@ -829,7 +834,7 @@ namespace VirtualHealthAPI
                 }
             }
 
-            // 4. Fetch Practitioner (PCP) if exists
+            // 4. Fetch Practitioner (PCP)
             if (patientJson.TryGetProperty("generalPractitioner", out var gpList))
             {
                 var practitionerRef = gpList[0].GetProperty("reference").GetString(); // e.g., Practitioner/123
@@ -851,67 +856,6 @@ namespace VirtualHealthAPI
                                 ? pcpTelecom[0].GetProperty("value").GetString() ?? ""
                                 : ""
                     };
-                }
-            }
-
-            // 5. Fetch Latest Vitals (limit 10)
-            var vitalsRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&_sort=-date&_count=10");
-            vitalsRes.EnsureSuccessStatusCode();
-            var vitalsJson = JsonDocument.Parse(await vitalsRes.Content.ReadAsStringAsync()).RootElement;
-
-            if (vitalsJson.TryGetProperty("entry", out var entries))
-            {
-                foreach (var entry in entries.EnumerateArray())
-                {
-                    var resource = entry.GetProperty("resource");
-                    var code = resource.GetProperty("code").GetProperty("coding")[0].GetProperty("display").GetString();
-                    var effectiveDate = resource.GetProperty("effectiveDateTime").GetString();
-                    DateTime timestamp = DateTime.Parse(effectiveDate ?? DateTime.UtcNow.ToString());
-
-                    if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
-                    {
-                        patientProfile.VitalSigns.Add(new VitalSignsInput
-                        {
-                            Type = code ?? "Unknown",
-                            Value = valueQuantity.GetProperty("value").GetDouble(),
-                            Unit = valueQuantity.GetProperty("unit").GetString() ?? "",
-                            Timestamp = timestamp
-                        });
-                    }
-                    else if (resource.TryGetProperty("component", out var components)) // BP
-                    {
-                        foreach (var component in components.EnumerateArray())
-                        {
-                            patientProfile.VitalSigns.Add(new VitalSignsInput
-                            {
-                                Type = component.GetProperty("code").GetProperty("coding")[0].GetProperty("display").GetString() ?? "Unknown",
-                                Value = component.GetProperty("valueQuantity").GetProperty("value").GetDouble(),
-                                Unit = component.GetProperty("valueQuantity").GetProperty("unit").GetString() ?? "",
-                                Timestamp = timestamp
-                            });
-                        }
-                    }
-                }
-            }
-
-            // 6. Fetch Past Conditions
-            var conditionRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Condition?subject=Patient/{patientId}&_count=50");
-            conditionRes.EnsureSuccessStatusCode();
-            var conditionJson = JsonDocument.Parse(await conditionRes.Content.ReadAsStringAsync()).RootElement;
-
-            if (conditionJson.TryGetProperty("entry", out var conditionEntries))
-            {
-                foreach (var entry in conditionEntries.EnumerateArray())
-                {
-                    var resource = entry.GetProperty("resource");
-                    var code = resource.GetProperty("code").GetProperty("coding")[0].GetProperty("display").GetString();
-                    var codeValue = resource.GetProperty("code").GetProperty("coding")[0].GetProperty("code").GetString();
-
-                    patientProfile.PastConditions.Add(new ConditionInput
-                    {
-                        Code = codeValue ?? "Unknown",
-                        Display = code ?? "Unknown Condition"
-                    });
                 }
             }
 

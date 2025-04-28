@@ -40,10 +40,10 @@ public class MedplumController : ControllerBase
         return Ok(results);
     }
 
-    [HttpGet("patient-full-profile/{patientId}")]
-    public async Task<IActionResult> GetFullProfile(string patientId)
+    [HttpGet("patient-full-profile/{emailId}")]
+    public async Task<IActionResult> GetFullProfile(string emailId)
     {
-        var result = await _medplum.GetPatientFullProfileAsync(patientId);
+        var result = await _medplum.GetPatientFullProfileByEmailAsync(emailId);
         return Ok(result);
     }
 
