@@ -57,6 +57,10 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
                     category = new[] {
                 new {
                     coding = new[] {
@@ -91,6 +95,10 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
                     category = new[] {
                 new {
                     coding = new[] {
@@ -157,14 +165,16 @@ namespace VirtualHealthAPI
             if (input.Vo2Max.HasValue)
                 AddSimpleObservation("41918-4", "VO2 Max", input.Vo2Max.Value, "ml/kg/min", "mL/(kg.min)");
 
-            if (input.SkinTemperature.HasValue)
-                AddSimpleObservation("8310-5", "Skin temperature", input.SkinTemperature.Value, "°F", "°F");
 
             if (input.SleepDuration.HasValue)
                 observations.Add(new
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
                     category = new[] {
                 new {
                     coding = new[] {
@@ -194,6 +204,10 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
                     category = new[] {
                 new {
                     coding = new[] {
@@ -218,27 +232,23 @@ namespace VirtualHealthAPI
                     }
                 });
 
-            if (!string.IsNullOrEmpty(input.StressLevel))
-                observations.Add(new
-                {
-                    resourceType = "Observation",
-                    status = "final",
-                    code = new
-                    {
-                        coding = new[] {
-                    new { system = "http://example.org/custom", code = "stress-level", display = "Stress level" }
-                }
-                    },
-                    subject = new { reference = $"Patient/{input.PatientId}" },
-                    effectiveDateTime = timestamp,
-                    valueString = input.StressLevel
-                });
 
             if (input.StepsGoalCompletion.HasValue)
                 observations.Add(new
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
+                    category = new[] {
+    new {
+        coding = new[] {
+            new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "activity" }
+        }
+    }
+},
                     code = new
                     {
                         coding = new[] {
@@ -261,6 +271,17 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    device = new
+                    {
+                        reference = $"Device/{input.DeviceId}-wearable"
+                    },
+                    category = new[] {
+    new {
+        coding = new[] {
+            new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "vital-signs" }
+        }
+    }
+},
                     code = new
                     {
                         coding = new[] {
@@ -406,107 +427,135 @@ namespace VirtualHealthAPI
             patientRes.EnsureSuccessStatusCode();
             var patientId = JsonDocument.Parse(await patientRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
 
-            // 3. Create Social History Observations
-            foreach (var history in input.SocialHistories)
+
+            // 3. Social History Observations (Smoking, Alcohol, Occupation)
+            var observations = new List<object>();
+            if (!string.IsNullOrEmpty(input.SmokingStatus))
             {
-                var socialObsPayload = new
+                observations.Add(new
                 {
                     resourceType = "Observation",
                     status = "final",
                     category = new[]
                     {
-            new
-            {
-                coding = new[]
+                new
                 {
-                    new
+                    coding = new[]
                     {
-                        system = "http://terminology.hl7.org/CodeSystem/observation-category",
-                        code = "social-history",
-                        display = "Social History"
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "social-history", display = "Social History" }
                     }
                 }
-            }
-        },
+            },
                     code = new
                     {
                         coding = new[]
                         {
-                new
-                {
-                    system = "http://loinc.org",
-                    code = history?.BehaviorCode ?? "72166-2", // fallback to Tobacco status if empty
-                    display = history?.BehaviorName ?? "Tobacco smoking status"
+                    new { system = "http://loinc.org", code = "72166-2", display = "Tobacco smoking status" }
                 }
-            }
                     },
                     subject = new { reference = $"Patient/{patientId}" },
                     effectiveDateTime = DateTime.UtcNow.ToString("o"),
-                    valueCodeableConcept = new
+                    valueString = input.SmokingStatus
+                });
+            }
+
+            if (!string.IsNullOrEmpty(input.AlcoholUse))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "social-history", display = "Social History" }
+                    }
+                }
+            },
+                    code = new
                     {
                         coding = new[]
                         {
-                new
-                {
-                    system = "http://snomed.info/sct",
-                    code = history?.StatusCode ?? "266919005", // fallback to Never Smoked
-                    display = history?.StatusDisplay ?? "Never Smoked Tobacco"
+                    new { system = "http://loinc.org", code = "74013-4", display = "Alcohol use" }
                 }
-            }
-                    }
-                };
-
-                var socialJson = JsonSerializer.Serialize(socialObsPayload);
-                var socialRes = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
-                    new StringContent(socialJson, Encoding.UTF8, "application/fhir+json"));
-                socialRes.EnsureSuccessStatusCode();
+                    },
+                    subject = new { reference = $"Patient/{patientId}" },
+                    effectiveDateTime = DateTime.UtcNow.ToString("o"),
+                    valueString = input.AlcoholUse
+                });
             }
 
             // 4. Create Lifestyle Observations
-            foreach (var lifestyle in input.LifestyleHistories)
+            // 4. Lifestyle Observations (Exercise, Diet)
+            if (!string.IsNullOrEmpty(input.ExerciseFrequency))
             {
-                var lifestyleObsPayload = new
+                observations.Add(new
                 {
                     resourceType = "Observation",
                     status = "final",
                     category = new[]
                     {
-            new
-            {
-                coding = new[]
+                new
                 {
-                    new
+                    coding = new[]
                     {
-                        system = "http://terminology.hl7.org/CodeSystem/observation-category",
-                        code = "social-history",
-                        display = "Lifestyle"
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "lifestyle", display = "Lifestyle" }
                     }
                 }
-            }
-        },
+            },
                     code = new
                     {
                         coding = new[]
                         {
-                new
-                {
-                    system = "http://loinc.org",
-                    code = lifestyle.LifestyleCode,
-                    display = lifestyle.LifestyleName
+                    new { system = "http://example.org/custom", code = "exercise-frequency", display = "Exercise Frequency" }
                 }
-            }
                     },
                     subject = new { reference = $"Patient/{patientId}" },
                     effectiveDateTime = DateTime.UtcNow.ToString("o"),
-                    valueString = lifestyle.Detail
-                };
-
-                var lifestyleJson = JsonSerializer.Serialize(lifestyleObsPayload);
-                var lifestyleRes = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
-                    new StringContent(lifestyleJson, Encoding.UTF8, "application/fhir+json"));
-                lifestyleRes.EnsureSuccessStatusCode();
+                    valueString = input.ExerciseFrequency
+                });
             }
 
+            if (!string.IsNullOrEmpty(input.DietHabits))
+            {
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    category = new[]
+                    {
+                new
+                {
+                    coding = new[]
+                    {
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "lifestyle", display = "Lifestyle" }
+                    }
+                }
+            },
+                    code = new
+                    {
+                        coding = new[]
+                        {
+                    new { system = "http://example.org/custom", code = "diet-habits", display = "Diet Habits" }
+                }
+                    },
+                    subject = new { reference = $"Patient/{patientId}" },
+                    effectiveDateTime = DateTime.UtcNow.ToString("o"),
+                    valueString = input.DietHabits
+                });
+            }
+
+            // Post all observations
+            foreach (var obs in observations)
+            {
+                var json = JsonSerializer.Serialize(obs);
+                var res = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Observation",
+                    new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+                res.EnsureSuccessStatusCode();
+            }
 
             // 4. Fetch Conditions if exists
             foreach (var condition in input.PastConditions)
@@ -570,29 +619,29 @@ namespace VirtualHealthAPI
             var content = await response.Content.ReadAsStringAsync();
             var jsonDoc = JsonDocument.Parse(content);
 
-            var observations = new List<ObservationSummary>();
+            var rawObservations = new List<ObservationSummary>();
 
             if (!jsonDoc.RootElement.TryGetProperty("entry", out var entries))
-                return observations; // No observations found
+                return rawObservations; // No observations found
 
             foreach (var entry in entries.EnumerateArray())
             {
                 var resource = entry.GetProperty("resource");
                 var codingArray = resource.GetProperty("code").GetProperty("coding");
 
-                // Usually pick the first coding unless you want to prioritize systems (LOINC preferred)
                 var firstCoding = codingArray[0];
                 var codeDisplay = firstCoding.GetProperty("display").GetString();
                 var codeSystem = firstCoding.GetProperty("system").GetString();
                 var codeValue = firstCoding.GetProperty("code").GetString();
-
-                var effectiveDateTime = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+                
+                var effectiveDateTimeStr = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+                DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
 
                 string value = "";
                 if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
                     value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
                 else if (resource.TryGetProperty("valueString", out var valueString))
-                    value = valueString.GetString();
+                    value = valueString.GetString()?? "";
                 else if (resource.TryGetProperty("valueInteger", out var valueInt))
                     value = valueInt.GetInt32().ToString();
 
@@ -600,31 +649,61 @@ namespace VirtualHealthAPI
                     ? string.Join(", ", categoryArray.EnumerateArray().Select(c => c.GetProperty("coding")[0].GetProperty("code").GetString()))
                     : "";
 
+                string device = string.Empty;
+                string performer = string.Empty;
+
+                if (resource.TryGetProperty("device", out var deviceObj) && deviceObj.ValueKind == JsonValueKind.Object)
+                {
+                    device = deviceObj.TryGetProperty("reference", out var refProp) ? refProp.GetString() ?? "" : "";
+                }
+
+                if (resource.TryGetProperty("performer", out var performerArray) && performerArray.ValueKind == JsonValueKind.Array)
+                {
+                    var firstPerformer = performerArray.EnumerateArray().FirstOrDefault();
+                    performer = firstPerformer.ValueKind == JsonValueKind.Object &&
+                                firstPerformer.TryGetProperty("reference", out var performerRef)
+                        ? performerRef.GetString() ?? ""
+                        : "";
+                }
+
                 // 🔥 Apply filters
                 bool include = filterType switch
                 {
                     ObservationFilterType.All => true,
                     ObservationFilterType.WearableVitals => categories.Contains("vital-signs"),
                     ObservationFilterType.SocialHistory => categories.Contains("social-history"),
-                    ObservationFilterType.Lifestyle => categories.Contains("activity"),
-                    _ => true
+                    ObservationFilterType.Activity => categories.Contains("activity"),
+                    ObservationFilterType.Survey => categories.Contains("survey"),
+                    ObservationFilterType.Lifestyle => categories.Contains("lifestyle"),
+                    ObservationFilterType.Exam => categories.Contains("exam"),
+                                _ => true
                 };
 
                 if (include)
                 {
-                    observations.Add(new ObservationSummary
+                    rawObservations.Add(new ObservationSummary
                     {
                         CodeDisplay = codeDisplay ?? "Unknown",
                         CodeSystem = codeSystem ?? "",
                         CodeValue = codeValue ?? "",
                         Categories = categories,
-                        Value = value,
-                        EffectiveDateTime = effectiveDateTime
+                        CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : $"self/{patientId}"),
+                        Value = value?? "",
+                        EffectiveDateTime = effectiveDateTimeStr?? DateTime.Now.ToString("o")
                     });
                 }
             }
 
-            return observations;
+            // ✅ Group by CodeValue and take latest by EffectiveDateTime
+            var latestObservations = rawObservations
+               .Where(o => !string.IsNullOrEmpty(o.CodeValue) && DateTime.TryParse(o.EffectiveDateTime, out _))
+               .GroupBy(o => o.CodeValue)
+               .Select(g =>
+               g.OrderByDescending(o => DateTime.Parse(o.EffectiveDateTime))
+               .First())
+               .ToList();
+
+            return latestObservations;
         }
 
         public async Task<List<VitalTrendResult>> GetVitalsTrendAsync(string patientId)
@@ -1001,7 +1080,7 @@ namespace VirtualHealthAPI
             var timestamp = input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o");
 
             var observations = new List<object>();
-
+            var pcpId = input.ProviderId;
             // 1. Survey Response (PHQ-9 Depression Score)
             if (input.Phq9Score.HasValue)
             {
@@ -1009,6 +1088,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] {new { reference = $"Practitioner/{pcpId}"}},
                     category = new[]
                     {
                 new
@@ -1038,6 +1118,30 @@ namespace VirtualHealthAPI
                 });
             }
 
+            if (!string.IsNullOrEmpty(input.StressLevel))
+                observations.Add(new
+                {
+                    resourceType = "Observation",
+                    status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
+                    category = new[] {
+    new {
+        coding = new[] {
+            new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "survey" }
+        }
+    }
+},
+                    code = new
+                    {
+                        coding = new[] {
+              new { system = "http://example.org/custom", code = "stress-level", display = "Stress level" }
+          }
+                    },
+                    subject = new { reference = $"Patient/{input.PatientId}" },
+                    effectiveDateTime = timestamp,
+                    valueString = input.StressLevel
+                });
+
             // 2. Physical Exam Findings (e.g., Lung Sounds: Clear)
             if (!string.IsNullOrEmpty(input.PhysicalExamFinding))
             {
@@ -1045,6 +1149,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
@@ -1075,6 +1180,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
@@ -1104,6 +1210,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
@@ -1133,6 +1240,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
@@ -1163,13 +1271,14 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
                 {
                     coding = new[]
                     {
-                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "activity", display = "Activity" }
+                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "lifestyle", display = "Lifestyle" }
                     }
                 }
             },
@@ -1192,13 +1301,14 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
                 {
                     coding = new[]
                     {
-                        new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "activity", display = "Activity" }
+                      new { system = "http://terminology.hl7.org/CodeSystem/observation-category", code = "lifestyle", display = "Lifestyle" }
                     }
                 }
             },
@@ -1240,6 +1350,7 @@ namespace VirtualHealthAPI
         "social-history",
         "activity",
         "survey",
+        "lifestyle",
         "exam" // custom for physical exams
     };
 
@@ -1283,6 +1394,13 @@ namespace VirtualHealthAPI
                     else if (resource.TryGetProperty("valueInteger", out var valueInt))
                         value = valueInt.GetInt32().ToString();
 
+                    //string device = string.Empty;
+                    //string performer = string.Empty;
+                    //if (resource.TryGetProperty("device", out var deviceId))
+                    //    device = deviceId.GetProperty("reference").GetString() ?? "";
+                    //if (resource.TryGetProperty("performer", out var performerIdentity))
+                    //    performer = performerIdentity.GetProperty("reference").GetString() ?? "";
+
                     observations.Add(new ObservationSummary
                     {
                         CodeDisplay = codeDisplay ?? "Unknown",
@@ -1290,6 +1408,7 @@ namespace VirtualHealthAPI
                         CodeValue = codeValue ?? "",
                         Categories = category,
                         Value = value,
+                       // CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : $"self/{patientId}"),
                         EffectiveDateTime = effectiveDateTime
                     });
                 }

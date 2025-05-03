@@ -28,9 +28,11 @@ public class PatientProfileInput
     public List<MentalHealthSurveyInput> MentalHealthAssessments { get; set; } = new();
 
     public PatientAddressInput PatientAddress  { get; set; }  = new PatientAddressInput();
-    public List<SocialHistoryInput> SocialHistories { get; set; } = new();
-    public List<LifestyleInput> LifestyleHistories { get; set; } = new();
-    public List<VitalSignsInput> VitalSigns { get; set; } = new();
+    public string? SmokingStatus { get; set; }
+    public string? AlcoholUse { get; set; }
+
+    public string? ExerciseFrequency { get; set; }
+    public string? DietHabits { get; set; }
 }
 
 public class PatientAddressInput 
@@ -42,20 +44,20 @@ public class PatientAddressInput
     public string ZipCode { get; set; } = string.Empty;
     public string Country { get; set; } = string.Empty;
 }
-public class SocialHistoryInput
-{
-    public string BehaviorCode { get; set; } // LOINC code for Smoking Status
-    public string BehaviorName { get; set; }
-    public string StatusCode { get; set; }     // SNOMED code for Former smoker
-    public string StatusDisplay { get; set; }
-}
+//public class SocialHistoryInput
+//{
+//    public string BehaviorCode { get; set; } // LOINC code for Smoking Status
+//    public string BehaviorName { get; set; }
+//    public string StatusCode { get; set; }     // SNOMED code for Former smoker
+//    public string StatusDisplay { get; set; }
+//}
 
-public class LifestyleInput
-{
-    public string LifestyleCode { get; set; }    // LOINC/SNOMED Code
-    public string LifestyleName { get; set; }    // Exercise Frequency, Diet Habit
-    public string Detail { get; set; }            // e.g., Exercises 3 times/week
-}
+//public class LifestyleInput
+//{
+//    public string LifestyleCode { get; set; }    // LOINC/SNOMED Code
+//    public string LifestyleName { get; set; }    // Exercise Frequency, Diet Habit
+//    public string Detail { get; set; }            // e.g., Exercises 3 times/week
+//}
 
 public class ImmunizationInput
 {
@@ -131,7 +133,10 @@ public enum ObservationFilterType
     All,
     WearableVitals,
     SocialHistory,
-    Lifestyle
+    Lifestyle,
+    Survey,
+    Exam,
+    Activity
 }
 
 public class PatientLabResultsOutput
@@ -147,6 +152,8 @@ public class ObservationSummary
     public string CodeValue { get; set; } = string.Empty;    // Example: 8867-4
     public string Categories { get; set; } = string.Empty;   // vital-signs, social-history etc.
     public string Value { get; set; } = string.Empty;         // 78 beats/min, 120 mmHg etc.
+
+    public string CapturedBy { get; set; } = string.Empty;
     public string EffectiveDateTime { get; set; } = string.Empty;  // 2025-04-27T10:00:00Z
 }
 

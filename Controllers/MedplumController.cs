@@ -26,7 +26,7 @@ public class MedplumController : ControllerBase
         return Ok(new { message = result });
     }
 
-    [HttpGet("current-wearable-observations/{patientId}")]
+    [HttpGet("current-observations/{patientId}")]
     public async Task<IActionResult> GetCurrentVitals(string patientId)
     {
         var results = await _medplum.GetPatientObservationsAsync(patientId);
@@ -68,12 +68,12 @@ public class MedplumController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("provider-reported-observations/{patientId}")]
-    public async Task<IActionResult> GetProviderReportedObservations(string patientId)
-    {
-        var result = await _medplum.GetProviderReportedObservationsByCategoryAsync(patientId);
-        return Ok(result);
-    }
+    //[HttpGet("provider-reported-observations/{patientId}")]
+    //public async Task<IActionResult> GetProviderReportedObservations(string patientId)
+    //{
+    //    var result = await _medplum.GetProviderReportedObservationsByCategoryAsync(patientId);
+    //    return Ok(result);
+    //}
 
     [HttpGet("patient-lab-results/{patientId}")]
     public async Task<IActionResult> GetLabResults(string patientId)
