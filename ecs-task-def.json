@@ -1,0 +1,21 @@
+{
+  "family": "virtualhealth-task",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "virtual-health-api",
+      "image": "ECR_IMAGE_URI",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ],
+  "requiresCompatibilities": [ "FARGATE" ],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::319319363953:role/ecsTaskExecutionRole"
+}

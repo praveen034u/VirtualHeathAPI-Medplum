@@ -67,7 +67,7 @@
         }
       }
     },
-    "/api/Medplum/current-observations/{patientId}": {
+    "/api/Medplum/current-wearable-observations/{patientId}": {
       "get": {
         "tags": [
           "Medplum"
@@ -111,7 +111,144 @@
         }
       }
     },
-    "/api/Medplum/patient-full-profile/{patientId}": {
+    "/api/Medplum/patient-full-profile/{emailId}": {
+      "get": {
+        "tags": [
+          "Medplum"
+        ],
+        "parameters": [
+          {
+            "name": "emailId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/ingest-general-lab-results-observations": {
+      "post": {
+        "tags": [
+          "Medplum"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabResultsInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabResultsInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/LabResultsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/ingest-imaging-lab-results-observations": {
+      "post": {
+        "tags": [
+          "Medplum"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImagingResultInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImagingResultInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImagingResultInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/ingest-provider-reported-observations": {
+      "post": {
+        "tags": [
+          "Medplum"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvidersReportedObservationsInput"
+              }
+            },
+            "text/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvidersReportedObservationsInput"
+              }
+            },
+            "application/*+json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProvidersReportedObservationsInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/provider-reported-observations/{patientId}": {
+      "get": {
+        "tags": [
+          "Medplum"
+        ],
+        "parameters": [
+          {
+            "name": "patientId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK"
+          }
+        }
+      }
+    },
+    "/api/Medplum/patient-lab-results/{patientId}": {
       "get": {
         "tags": [
           "Medplum"
@@ -150,6 +287,167 @@
         },
         "additionalProperties": false
       },
+      "ImagingResultInput": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "imagingType": {
+            "type": "string",
+            "nullable": true
+          },
+          "loincCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "resultSummary": {
+            "type": "string",
+            "nullable": true
+          },
+          "collectedDateTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "ImmunizationInput": {
+        "type": "object",
+        "properties": {
+          "vaccineCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "display": {
+            "type": "string",
+            "nullable": true
+          },
+          "dateGiven": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
+      },
+      "LabResultsInput": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "hba1c": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "totalCholesterol": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "hdl": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "ldl": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "triglycerides": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "hemoglobin": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "wbc": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "collectedDateTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "LifestyleInput": {
+        "type": "object",
+        "properties": {
+          "lifestyleCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "lifestyleName": {
+            "type": "string",
+            "nullable": true
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "MentalHealthSurveyInput": {
+        "type": "object",
+        "properties": {
+          "surveyQuestionCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "questionText": {
+            "type": "string",
+            "nullable": true
+          },
+          "score": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "additionalProperties": false
+      },
+      "PatientAddressInput": {
+        "type": "object",
+        "properties": {
+          "addressLine1": {
+            "type": "string",
+            "nullable": true
+          },
+          "street": {
+            "type": "string",
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "state": {
+            "type": "string",
+            "nullable": true
+          },
+          "zipCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "country": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "PatientProfileInput": {
         "type": "object",
         "properties": {
@@ -177,7 +475,15 @@
             "type": "string",
             "nullable": true
           },
-          "conditions": {
+          "email": {
+            "type": "string",
+            "nullable": true
+          },
+          "phoneNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "pastConditions": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ConditionInput"
@@ -187,7 +493,50 @@
           "pcp": {
             "$ref": "#/components/schemas/PractitionerInput"
           },
-          "vitals": {
+          "emergencyContactFirstName": {
+            "type": "string",
+            "nullable": true
+          },
+          "emergencyContactLastName": {
+            "type": "string",
+            "nullable": true
+          },
+          "emergencyContactPhone": {
+            "type": "string",
+            "nullable": true
+          },
+          "immunizations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImmunizationInput"
+            },
+            "nullable": true
+          },
+          "mentalHealthAssessments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MentalHealthSurveyInput"
+            },
+            "nullable": true
+          },
+          "patientAddress": {
+            "$ref": "#/components/schemas/PatientAddressInput"
+          },
+          "socialHistories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SocialHistoryInput"
+            },
+            "nullable": true
+          },
+          "lifestyleHistories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LifestyleInput"
+            },
+            "nullable": true
+          },
+          "vitalSigns": {
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/VitalSignsInput"
@@ -227,6 +576,72 @@
         },
         "additionalProperties": false
       },
+      "ProvidersReportedObservationsInput": {
+        "type": "object",
+        "properties": {
+          "patientId": {
+            "type": "string",
+            "nullable": true
+          },
+          "phq9Score": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "physicalExamFinding": {
+            "type": "string",
+            "nullable": true
+          },
+          "smokingStatus": {
+            "type": "string",
+            "nullable": true
+          },
+          "alcoholUse": {
+            "type": "string",
+            "nullable": true
+          },
+          "occupation": {
+            "type": "string",
+            "nullable": true
+          },
+          "exerciseFrequency": {
+            "type": "string",
+            "nullable": true
+          },
+          "dietHabits": {
+            "type": "string",
+            "nullable": true
+          },
+          "collectedDateTime": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "SocialHistoryInput": {
+        "type": "object",
+        "properties": {
+          "behaviorCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "behaviorName": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusDisplay": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "VitalSignsInput": {
         "type": "object",
         "properties": {
@@ -257,23 +672,23 @@
             "nullable": true
           },
           "heartRate": {
-            "type": "integer",
-            "format": "int32",
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "systolic": {
-            "type": "integer",
-            "format": "int32",
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "diastolic": {
-            "type": "integer",
-            "format": "int32",
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "spo2": {
-            "type": "integer",
-            "format": "int32",
+            "type": "number",
+            "format": "double",
             "nullable": true
           },
           "temperature": {
@@ -282,8 +697,67 @@
             "nullable": true
           },
           "steps": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "respiratoryRate": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "bloodGlucose": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "caloriesBurned": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "heartRateVariability": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "vo2Max": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "skinTemperature": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "sleepDuration": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "sleepRestlessnessIndex": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "stressLevel": {
+            "type": "string",
+            "nullable": true
+          },
+          "stepsGoalCompletion": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "oxygenDesaturationEvents": {
             "type": "integer",
             "format": "int32",
+            "nullable": true
+          },
+          "collectedDateTime": {
+            "type": "string",
+            "format": "date-time",
             "nullable": true
           }
         },

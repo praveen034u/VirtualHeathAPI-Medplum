@@ -29,7 +29,7 @@ public class MedplumController : ControllerBase
     [HttpGet("current-observations/{patientId}")]
     public async Task<IActionResult> GetCurrentVitals(string patientId)
     {
-        var results = await _medplum.GetCurrentObservationsAsync(patientId);
+        var results = await _medplum.GetPatientObservationsAsync(patientId);
         return Ok(results);
     }
 
@@ -40,10 +40,45 @@ public class MedplumController : ControllerBase
         return Ok(results);
     }
 
-    [HttpGet("patient-full-profile/{patientId}")]
-    public async Task<IActionResult> GetFullProfile(string patientId)
+    [HttpGet("patient-full-profile/{emailId}")]
+    public async Task<IActionResult> GetFullProfile(string emailId)
     {
-        var result = await _medplum.GetPatientFullProfileAsync(patientId);
+        var result = await _medplum.GetPatientFullProfileByEmailAsync(emailId);
+        return Ok(result);
+    }
+
+    [HttpPost("ingest-general-lab-results-observations")]
+    public async Task<IActionResult> IngestGeneralLabResults([FromBody] LabResultsInput input)
+    {
+        var result = await _medplum.SaveLabResultsAsync(input);
+        return Ok(new { message = result });
+    }
+
+    [HttpPost("ingest-imaging-lab-results-observations")]
+    public async Task<IActionResult> IngestImagingLabResults([FromBody] ImagingResultInput input)
+    {
+        var result = await _medplum.SaveImagingResultAsync(input);
+        return Ok(new { message = result });
+    }
+
+    [HttpPost("ingest-provider-reported-observations")]
+    public async Task<IActionResult> IngestProviderReportedObservations([FromBody] ProvidersReportedObservationsInput input)
+    {
+        var result = await _medplum.SaveProvidersReportedObservationsAsync(input);
+        return Ok(result);
+    }
+
+    //[HttpGet("provider-reported-observations/{patientId}")]
+    //public async Task<IActionResult> GetProviderReportedObservations(string patientId)
+    //{
+    //    var result = await _medplum.GetProviderReportedObservationsByCategoryAsync(patientId);
+    //    return Ok(result);
+    //}
+
+    [HttpGet("patient-lab-results/{patientId}")]
+    public async Task<IActionResult> GetLabResults(string patientId)
+    {
+        var result = await _medplum.GetPatientLabResultsAsync(patientId);
         return Ok(result);
     }
 }
