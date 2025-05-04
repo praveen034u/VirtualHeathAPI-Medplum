@@ -687,7 +687,7 @@ namespace VirtualHealthAPI
                         CodeSystem = codeSystem ?? "",
                         CodeValue = codeValue ?? "",
                         Categories = categories,
-                        CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : $"self/{patientId}"),
+                        CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer :(categories.Equals("imaging")|| categories.Equals("laboratory")) ? $"lab/{patientId}" : $"self/{patientId}"),
                         Value = value?? "",
                         EffectiveDateTime = effectiveDateTimeStr?? DateTime.Now.ToString("o")
                     });
