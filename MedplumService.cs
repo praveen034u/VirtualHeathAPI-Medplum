@@ -1,20 +1,38 @@
-﻿using System.Net.Http.Headers;
+﻿using System;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
+using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Writes;
+using Microsoft.AspNetCore.Connections.Features;
 using Microsoft.Extensions.Configuration;
+using InfluxDB.Client;
+using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Writes;
 
 namespace VirtualHealthAPI
 {
     public class MedplumService
     {
+        private readonly InfluxDBClient _influxClient;
+        private readonly string _bucket;
+        private readonly string _org;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
-
+        private readonly string _influxUrl;
+        private readonly char[] _token;
         public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
+
+            //_influxUrl = config["Influx:Url"];
+            //_token = config["Influx:Token"].ToCharArray();
+            //_org = config["Influx:Org"];
+            //_bucket = config["Influx:Bucket"];
+
+            //_influxClient = InfluxDBClientFactory.Create(_influxUrl, new string(_token));
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -39,7 +57,27 @@ namespace VirtualHealthAPI
             return token!;
         }
 
-        public async Task<string> IngestWearableObservationsAsync(WearableVitalsInput input)
+        public async Task<string> IngestWearableObservationsDataStoreAsync(WearableVitalsInput input)
+        {
+
+            // write the logic to store the data from device to influx db
+           // var point = PointData
+           //.Measurement("vitals")
+           //.Tag("device", "wearable-1")
+           //.Field("heartRate", heartRate)
+           //.Field("spo2", spo2)
+           //.Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+
+           // using (var writeApi = _influxClient.GetWriteApiAsync())
+           // {
+           //     await writeApi.WritePointAsync(point, _bucket, _org);
+           // }
+
+
+            return $"Saved Wearable data.";
+        }
+
+        public async Task<string> IngestWearableObservationsEHRSystemAsync(WearableVitalsInput input)
         {
             var token = await GetAccessTokenAsync();
             var client = _httpClientFactory.CreateClient();
@@ -604,6 +642,93 @@ namespace VirtualHealthAPI
             }
 
             return $"Patient {patientId} created with PCP.";
+        }
+
+        public async Task<Dictionary<string, string>> GetPredictionUsingAIAsync(string patientId)
+        {
+            //var predictionResults = new Dictionary<string, string>
+            //{
+            //    { "SleepApnia", "Low" },
+            //    { "Diebetics", "Low" },
+            //    { "Hypertension", "Low" },
+            //    { "HeartAttack", "Low" }
+            //};
+
+            var result = await MapObservationSummaryToHealthMetricsInputAsync(patientId);
+            var jsonResult = JsonSerializer.Serialize(result);
+            // can you assign the observation summary result to the HealthMetricsInput .
+            //call python API local url 
+            var client = _httpClientFactory.CreateClient();
+            //transform the output of medplum observation into the required input payload to call teh predeiction api. 
+            var content = new StringContent(jsonResult, Encoding.UTF8, "application/json");
+            var response = await client.PostAsync("http://54.84.47.62:8000/predict_combined", content);
+            //transform the prediction output data into response dictionary to send back to UI
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error calling prediction API");
+            }
+
+            var predictionContent = await response.Content.ReadAsStringAsync();
+
+            var predictionResults = JsonSerializer.Deserialize<Dictionary<string, string>>(predictionContent);
+
+            if (predictionResults == null)
+            {
+                throw new Exception("Error deserializing prediction results");
+            }
+            //0.00 – 0.25 Low Risk(Easy)
+            //0.26 – 0.50 Moderate Risk
+            //0.51 – 0.75 High Risk
+            //0.76 – 1.00 Very High Risk(Danger)
+
+            return predictionResults;
+        }
+
+
+        public async Task<HealthMetricsInput> MapObservationSummaryToHealthMetricsInputAsync(string patientId)
+        {
+            var observationSummaries = await GetPatientObservationsAsync(patientId, ObservationFilterType.WearableVitals);
+
+            var healthMetricsInput = new HealthMetricsInput();
+
+            foreach (var observation in observationSummaries)
+            {
+                switch (observation.CodeValue)
+                {
+                    case "8867-4": // Heart Rate
+                        healthMetricsInput.Hrv = Convert.ToInt32(observation.Value);
+                        break;
+                    //case "85354-9": // Blood Pressure
+                    //    healthMetricsInput. = observation.Value;
+                    //    break;
+                    //case "59408-5": // SpO2
+                    //    healthMetricsInput.SpO2 = observation.Value;
+                    //    break;
+                    //case "8310-5": // Temperature
+                    //    healthMetricsInput.Temperature = observation.Value;
+                    //    break;
+                    //case "41950-7": // Steps
+                    //    healthMetricsInput.Steps = observation.Value;
+                    //    break;
+                    //case "9279-1": // Respiratory Rate
+                    //    healthMetricsInput.RespiratoryRate = observation.Value;
+                    //    break;
+                    //case "2339-0": // Blood Glucose
+                    //    healthMetricsInput.BloodGlucose = observation.Value;
+                    //    break;
+                    //case "93832-4": // Sleep Duration
+                    //    healthMetricsInput.SleepDuration = observation.Value;
+                    //    break;
+                    //case "80394-6": // Heart Rate Variability
+                    //    healthMetricsInput.HeartRateVariability = observation.Value;
+                    //    break;
+                    //case "41918-4": // VO2 Max
+                    //    healthMetricsInput.Vo2Max = observation.Value;
+                    //    break;
+                }
+            }
+
+            return healthMetricsInput;
         }
 
         public async Task<List<ObservationSummary>> GetPatientObservationsAsync(string patientId, ObservationFilterType filterType = ObservationFilterType.All)
