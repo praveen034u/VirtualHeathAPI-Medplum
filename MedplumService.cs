@@ -10,6 +10,7 @@ using Microsoft.Extensions.Configuration;
 using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
+using System.Net.Sockets;
 
 namespace VirtualHealthAPI
 {
@@ -22,7 +23,7 @@ namespace VirtualHealthAPI
         private readonly IConfiguration _config;
         private readonly string _influxUrl;
         private readonly char[] _token;
-        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config)
+        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
@@ -33,6 +34,7 @@ namespace VirtualHealthAPI
             //_bucket = config["Influx:Bucket"];
 
             //_influxClient = InfluxDBClientFactory.Create(_influxUrl, new string(_token));
+            _influxClient = influxClient;
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -72,6 +74,35 @@ namespace VirtualHealthAPI
             // {
             //     await writeApi.WritePointAsync(point, _bucket, _org);
             // }
+            var writeApi = _influxClient.GetWriteApiAsync();
+      
+                var point = PointData
+                    .Measurement("vitals")
+                    .Tag("deviceId", input.DeviceId)
+                    .Field("patientId", input.PatientId)
+                    .Field("deviceId", input.DeviceId)
+                    .Field("heartRate", input.HeartRate ?? 0)
+                    .Field("systolicBp", input.Systolic ?? 0)
+                    .Field("diastolicBp", input.Diastolic ?? 0)
+                    .Field("spo2", input.Spo2 ?? 0)
+                    .Field("temperature", input.Temperature ?? 0)
+                    .Field("steps", input.Steps ?? 0)
+                    .Field("respiratoryRate", input.RespiratoryRate ?? 0)
+                    .Field("bloodGlucose", input.BloodGlucose ?? 0)
+                   // .Field("bloodPressure", $"{input.Systolic}/{input.Diastolic}")
+                    .Field("caloriesBurned", input.CaloriesBurned ?? 0)
+                    .Field("heartRateVariability", input.HeartRateVariability ?? 0)
+                    .Field("vo2Max", input.Vo2Max ?? 0)
+                    .Field("skinTemperature", input.SkinTemperature ?? 0)
+                    .Field("sleepDuration", input.SleepDuration ?? 0)
+                    .Field("sleepRestlessnessIndex", input.SleepRestlessnessIndex ?? 0)
+                    .Field("stepsGoalCompletion", input.StepsGoalCompletion ?? 0)
+                    .Field("oxygenDesaturationEvents", input.OxygenDesaturationEvents ?? 0)
+                    .Field("collectedDateTime", input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o"))    
+                    .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+
+                await writeApi.WritePointAsync(point);
+            
 
 
             return $"Saved Wearable data.";
