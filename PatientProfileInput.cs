@@ -175,6 +175,14 @@ public class LabResultsInput
     public double? Triglycerides { get; set; }
     public double? Hemoglobin { get; set; }
     public double? Wbc { get; set; }
+    public double? Rbc { get; set; }
+    public double? PlateletCount { get; set; }
+    public double? VitaminD { get; set; }
+    public double? VitaminB12 { get; set; }
+    public double? Iron { get; set; }
+    public double? T3 { get; set; }
+    public double? T4 { get; set; }
+    public double? TSH { get; set; }
     public DateTime? CollectedDateTime { get; set; }  // Optional timestamp
 }
 
