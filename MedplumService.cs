@@ -1,8 +1,10 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Configuration;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VirtualHealthAPI
 {
@@ -10,11 +12,19 @@ namespace VirtualHealthAPI
     {
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
+        private readonly string _apiBaseUrl;
+        private readonly HttpClient _httpClient;
+
+        private readonly string _catSocialHistory = "social-history";
+        private readonly string _catLifeStyle = "lifestyle";
+        private readonly string _catVitalSign = "vital-signs";
 
         public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
+            _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
+            _httpClient = httpClientFactory.CreateClient();
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -303,6 +313,123 @@ namespace VirtualHealthAPI
             }
 
             return $"Ingested {observations.Count} wearable vitals for Patient/{input.PatientId}.";
+        }
+
+        public async Task<PatientProfileInput> GetPatientFullProfileByEmailAsync(string email)
+        {
+            var token = await GetAccessTokenAsync();
+            //var client = _httpClientFactory.CreateClient();
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            // 1. Search Patient by Email
+            //var searchRes = await _httpClient.GetAsync($"{_config["Medplum:FhirUrl"]}/Patient?telecom=email%7C{Uri.EscapeDataString(email)}");
+            //searchRes.EnsureSuccessStatusCode();
+            //var searchJson = JsonDocument.Parse(await searchRes.Content.ReadAsStringAsync()).RootElement;
+
+            var searchJson = await FhirGetAsync("Patient", $"telecom=email%7C{Uri.EscapeDataString(email)}");
+            if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
+                throw new Exception($"No patient found with email {email}");
+
+            var patientJson = entries[0].GetProperty("resource");
+            var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
+
+            var patientProfile = new PatientProfileInput
+            {
+                PatientId = patientId,
+                PatientName = $"{patientJson.GetProperty("name")[0].GetProperty("given")[0].GetString()} {patientJson.GetProperty("name")[0].GetProperty("family").GetString()}",
+                FirstName = $"{patientJson.GetProperty("name")[0].GetProperty("given")[0].GetString()}",
+                LastName = $"{patientJson.GetProperty("name")[0].GetProperty("family").GetString()}",
+                BirthDate = patientJson.GetProperty("birthDate").GetString() ?? "",
+                Gender = patientJson.GetProperty("gender").GetString() ?? ""
+            };
+
+            // 2. Fetch Patient Email and Phone
+            if (patientJson.TryGetProperty("telecom", out var telecoms))
+            {
+                foreach (var telecom in telecoms.EnumerateArray())
+                {
+                    var system = telecom.GetProperty("system").GetString();
+                    var value = telecom.GetProperty("value").GetString();
+                    if (system == "phone")
+                        patientProfile.PhoneNumber = value ?? "";
+                    else if (system == "email")
+                        patientProfile.Email = value ?? "";
+                }
+            }
+
+            // 2.1 Fetch Patient Address
+            if (patientJson.TryGetProperty("address", out var addresses))
+            {
+                foreach (var address in addresses.EnumerateArray())
+                {
+                    var use = address.GetProperty("use").GetString();
+                    if (use == "home")
+                    {
+                        patientProfile.PatientAddress.AddressLine1 = address.GetProperty("line")[0].GetString() ?? string.Empty;
+                        patientProfile.PatientAddress.City = address.GetProperty("city").GetString() ?? string.Empty;
+                        patientProfile.PatientAddress.State = address.GetProperty("state").GetString() ?? string.Empty;
+                        patientProfile.PatientAddress.ZipCode = address.GetProperty("postalCode").GetString() ?? string.Empty;
+                        patientProfile.PatientAddress.Country = address.GetProperty("country").GetString() ?? string.Empty;
+                    }
+                }
+            }
+
+            // 3. Fetch Emergency Contact
+            if (patientJson.TryGetProperty("contact", out var contacts))
+            {
+                var emergency = contacts[0]; // Assuming first contact is emergency
+                if (emergency.TryGetProperty("name", out var contactName))
+                {
+                    patientProfile.EmergencyContactFirstName = contactName.GetProperty("given")[0].GetString() ?? "";
+                    patientProfile.EmergencyContactLastName = contactName.GetProperty("family").GetString() ?? "";
+                }
+                if (emergency.TryGetProperty("telecom", out var contactTelecoms))
+                {
+                    foreach (var contactTelecom in contactTelecoms.EnumerateArray())
+                    {
+                        if (contactTelecom.GetProperty("system").GetString() == "phone")
+                        {
+                            patientProfile.EmergencyContactPhone = contactTelecom.GetProperty("value").GetString() ?? "";
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 4. Fetch Practitioner (PCP)
+            if (patientJson.TryGetProperty("generalPractitioner", out var gpList))
+            {
+                var practitionerRef = gpList[0].GetProperty("reference").GetString(); // e.g., Practitioner/123
+                if (practitionerRef != null)
+                {
+                    var practitionerId = practitionerRef.Split('/')[1];
+                    //var practitionerRes = await _httpClient.GetAsync($"{_config["Medplum:FhirUrl"]}/Practitioner/{practitionerId}");
+                    //practitionerRes.EnsureSuccessStatusCode();
+                    //var practitionerJson = JsonDocument.Parse(await practitionerRes.Content.ReadAsStringAsync()).RootElement;
+
+                    var practitionerJson = await FhirGetAsync($"Practitioner/{practitionerId}", string.Empty);
+                    patientProfile.Pcp = new PractitionerInput
+                    {
+                        PractitionerId = practitionerId,
+                        PractitionerName = $"{practitionerJson.GetProperty("name")[0].GetProperty("given")[0].GetString()} {practitionerJson.GetProperty("name")[0].GetProperty("family").GetString()}",
+                        FirstName = $"{practitionerJson.GetProperty("name")[0].GetProperty("given")[0].GetString()}",
+                        LastName = $"{practitionerJson.GetProperty("name")[0].GetProperty("family").GetString()}",
+                        Gender = practitionerJson.GetProperty("gender").GetString() ?? "",
+                        Email = practitionerJson.TryGetProperty("telecom", out var pcpTelecom) && pcpTelecom.GetArrayLength() > 0
+                                ? pcpTelecom[0].GetProperty("value").GetString() ?? ""
+                                : ""
+                    };
+                }
+            }
+
+            var observations = await GetPatientObservationsAsync(patientId);
+            if (observations.Count > 0)
+                ParseObservation(patientProfile, observations);
+
+            patientProfile.PastConditions = await GetPatientConditionsAsync(patientId);
+            return patientProfile;
         }
 
         public async Task<string> CreatePatientWithPcpAndVitalsAsync(PatientProfileInput input)
@@ -606,91 +733,1371 @@ namespace VirtualHealthAPI
             return $"Patient {patientId} created with PCP.";
         }
 
+        //public async Task<string> CreatePatientProfileAsync(PatientProfileInput input)
+        //{
+        //    var token = await GetAccessTokenAsync();
+        //    var client = _httpClientFactory.CreateClient();
+        //    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        //    client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+        //    // 1. Create Practitioner (PCP)
+        //    var pcpPayload = new
+        //    {
+        //        resourceType = "Practitioner",
+        //        name = new[]
+        //        {
+        //            new {
+        //                family = input.Pcp.LastName,
+        //                given = new[] { input.Pcp.FirstName }
+        //            }
+        //        },
+        //        telecom = new[]
+        //        {
+        //            new {
+        //                system = "email",
+        //                value = input.Pcp.Email,
+        //                use = "work"
+        //            }
+        //        },
+        //        gender = input.Pcp.Gender
+        //    };
+
+        //    var pcpJson = JsonSerializer.Serialize(pcpPayload);
+        //    var pcpRes = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Practitioner",
+        //        new StringContent(pcpJson, Encoding.UTF8, "application/fhir+json"));
+        //    pcpRes.EnsureSuccessStatusCode();
+        //    var pcpId = JsonDocument.Parse(await pcpRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+
+        //    // 2. Create Patient with PCP link
+        //    var patientPayload = new
+        //    {
+        //        resourceType = "Patient",
+        //        name = new[]
+        //                {
+        //                    new {
+        //                        given = new[] { input.FirstName },
+        //                        family = input.LastName
+        //                    }
+        //                },
+        //        gender = input.Gender,
+        //        birthDate = input.BirthDate,
+        //        telecom = new[]
+        //                    {
+        //                        new {
+        //                            system = "phone",
+        //                            value = input.PhoneNumber,
+        //                            use = "mobile"
+        //                        },
+        //                        new {
+        //                            system = "email",
+        //                            value = input.Email,   // <-- assuming input.Email is available
+        //                            use = "home"
+        //                        }
+        //                    },
+        //        address = new[]
+        //                    {
+        //                        new {
+        //                            use = "home",
+        //                            line = new[] { input.PatientAddress.AddressLine1  },
+        //                            city = input.PatientAddress.City,
+        //                            state = input.PatientAddress.State,
+        //                            postalCode = input.PatientAddress.ZipCode,
+        //                            country = input.PatientAddress.Country
+        //                        }
+        //                    },
+        //        contact = new[]
+        //                    {
+        //                        new {
+        //                            relationship = new[]
+        //                            {
+        //                                new {
+        //                                    coding = new[]
+        //                                    {
+        //                                        new {
+        //                                            system = "http://terminology.hl7.org/CodeSystem/v2-0131",
+        //                                            code = "E",
+        //                                            display = "Emergency"
+        //                                        }
+        //                                    }
+        //                                }
+        //                            },
+        //                            name = new {
+        //                                given = new[] { input.EmergencyContactFirstName },
+        //                                family = input.EmergencyContactLastName
+        //                            },
+        //                            telecom = new[]
+        //                            {
+        //                                new {
+        //                                    system = "phone",
+        //                                    value = input.EmergencyContactPhone,
+        //                                    use = "mobile"
+        //                                }
+        //                            }
+        //                        }
+        //                    },
+
+        //        generalPractitioner = new[]
+        //                                {
+        //                                    new {
+        //                                        reference = $"Practitioner/{pcpId}"
+        //                                    }
+        //                                }
+        //    };
+
+        //    var patientJson = JsonSerializer.Serialize(patientPayload);
+        //    var patientRes = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/Patient",
+        //        new StringContent(patientJson, Encoding.UTF8, "application/fhir+json"));
+        //    patientRes.EnsureSuccessStatusCode();
+        //    var patientId = JsonDocument.Parse(await patientRes.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+
+        //    //Vitals
+        //    await UpsertVitals(client, patientId, input.VitalSigns);
+
+        //    await UpsertSocialHistory(client, patientId, input.SocialHistories);
+
+        //    await UpsertLifeStyle(client, patientId, input.LifestyleHistories);
+
+        //    // 4. Insert Conditions if exists
+        //    await UpsertPastConditions(client, patientId, input.PastConditions);
+
+        //    return $"Patient {patientId} created with PCP.";
+        //}
+
+        public async Task<string> UpsertPatientProfileAsync(PatientProfileInput input)
+        {
+            var token = await GetAccessTokenAsync();
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var patientId = input.PatientId ?? string.Empty;
+            var pcpId = input.Pcp.PractitionerId ?? string.Empty;
+
+            // 1. Create Practitioner (PCP)
+            if (string.IsNullOrEmpty(pcpId))
+                pcpId = await CreatePractitioner(input.Pcp);
+            else
+                await UpdatePractitioner(input.Pcp);
+
+            // 2. Create Patient with PCP link
+            if (string.IsNullOrEmpty(patientId))
+                patientId = await CreatePatient(input, pcpId);
+            else
+                await UpdatePatient(input, pcpId);
+
+            var previousObs = await GetPatientObservationsAsync(patientId);
+            var previousProfile = new PatientProfileInput();
+            if (previousObs.Count > 0)
+                ParseObservation(previousProfile, previousObs);
+
+            //Vitals
+            await SyncVitalSignsAsync(patientId, input.VitalSigns, previousProfile.VitalSigns);
+
+            await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
+
+            await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
+
+            await SyncLifeStyleAsync(patientId, input.LifestyleHistories, previousProfile.LifestyleHistories);
+
+            // 4. Insert Conditions if exists
+            await SyncConditionsAsync(patientId, input.PastConditions);
+
+            return $"Patient {patientId} created with PCP.";
+        }
+
+        private async Task<string> CreatePractitioner(PractitionerInput practitioner)
+        {
+            var pcpPayload = new
+            {
+                resourceType = "Practitioner",
+                name = new[]
+                {
+                    new {
+                        family = practitioner.LastName,
+                        given = new[] { practitioner.FirstName }
+                    }
+                },
+                telecom = new[]
+                {
+                    new {
+                        system = "email",
+                        value = practitioner.Email,
+                        use = "work"
+                    }
+                },
+                gender = practitioner.Gender
+            };
+
+            return await FhirPostAsync("Practitioner", pcpPayload);
+        }
+
+        private async Task<string> UpdatePractitioner(PractitionerInput practitioner)
+        {
+            var pcpPayload = new
+            {
+                resourceType = "Practitioner",
+                id = practitioner.PractitionerId,
+                name = new[]
+                {
+                    new {
+                        family = practitioner.LastName,
+                        given = new[] { practitioner.FirstName }
+                    }
+                },
+                telecom = new[]
+                {
+                    new {
+                        system = "email",
+                        value = practitioner.Email,
+                        use = "work"
+                    }
+                },
+                gender = practitioner.Gender
+            };
+
+            return await FhirPutAsync("Practitioner", pcpPayload, practitioner?.PractitionerId);
+        }
+
+        private async Task<string> CreatePatient(PatientProfileInput patient, string pcpId)
+        {
+            var patientPayload = new
+            {
+                resourceType = "Patient",
+                name = new[]
+                        {
+                            new {
+                                use = "official",
+                                given = new[] { patient.FirstName },
+                                family = patient.LastName
+                            }
+                        },
+                gender = patient.Gender,
+                birthDate = patient.BirthDate,
+                telecom = new[]
+                            {
+                                new {
+                                    system = "phone",
+                                    value = patient.PhoneNumber,
+                                    use = "mobile"
+                                },
+                                new {
+                                    system = "email",
+                                    value = patient.Email,   // <-- assuming input.Email is available
+                                    use = "home"
+                                }
+                            },
+                address = new[]
+                            {
+                                new {
+                                    use = "home",
+                                    line = new[] { patient.PatientAddress.AddressLine1  },
+                                    city = patient.PatientAddress.City,
+                                    state = patient.PatientAddress.State,
+                                    postalCode = patient.PatientAddress.ZipCode,
+                                    country = patient.PatientAddress.Country
+                                }
+                            },
+                contact = new[]
+                            {
+                                new {
+                                    relationship = new[]
+                                    {
+                                        new {
+                                            coding = new[]
+                                            {
+                                                new {
+                                                    system = "http://terminology.hl7.org/CodeSystem/v2-0131",
+                                                    code = "E",
+                                                    display = "Emergency"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    name = new {
+                                        given = new[] { patient.EmergencyContactFirstName },
+                                        family = patient.EmergencyContactLastName
+                                    },
+                                    telecom = new[]
+                                    {
+                                        new {
+                                            system = "phone",
+                                            value = patient.EmergencyContactPhone,
+                                            use = "mobile"
+                                        }
+                                    }
+                                }
+                            },
+
+                generalPractitioner = new[]
+                                        {
+                                            new {
+                                                reference = $"Practitioner/{pcpId}"
+                                            }
+                                        }
+            };
+
+            return await FhirPostAsync("Patient", patientPayload);
+        }
+
+        private async Task<string> UpdatePatient(PatientProfileInput patient, string pcpId)
+        {
+            var patientPayload = new
+            {
+                resourceType = "Patient",
+                id = patient.PatientId,
+                name = new[]
+                        {
+                            new {
+                                use = "official",
+                                given = new[] { patient.FirstName },
+                                family = patient.LastName
+                            }
+                        },
+                gender = patient.Gender,
+                birthDate = patient.BirthDate,
+                telecom = new[]
+                            {
+                                new {
+                                    system = "phone",
+                                    value = patient.PhoneNumber,
+                                    use = "mobile"
+                                },
+                                new {
+                                    system = "email",
+                                    value = patient.Email,   // <-- assuming input.Email is available
+                                    use = "home"
+                                }
+                            },
+                address = new[]
+                            {
+                                new {
+                                    use = "home",
+                                    line = new[] { patient.PatientAddress.AddressLine1  },
+                                    city = patient.PatientAddress.City,
+                                    state = patient.PatientAddress.State,
+                                    postalCode = patient.PatientAddress.ZipCode,
+                                    country = patient.PatientAddress.Country
+                                }
+                            },
+                contact = new[]
+                            {
+                                new {
+                                    relationship = new[]
+                                    {
+                                        new {
+                                            coding = new[]
+                                            {
+                                                new {
+                                                    system = "http://terminology.hl7.org/CodeSystem/v2-0131",
+                                                    code = "E",
+                                                    display = "Emergency"
+                                                }
+                                            }
+                                        }
+                                    },
+                                    name = new {
+                                        given = new[] { patient.EmergencyContactFirstName },
+                                        family = patient.EmergencyContactLastName
+                                    },
+                                    telecom = new[]
+                                    {
+                                        new {
+                                            system = "phone",
+                                            value = patient.EmergencyContactPhone,
+                                            use = "mobile"
+                                        }
+                                    }
+                                }
+                            },
+
+                generalPractitioner = new[]
+                                        {
+                                            new {
+                                                reference = $"Practitioner/{pcpId}"
+                                            }
+                                        }
+            };
+
+            return await FhirPutAsync("Patient", patientPayload, patient.PatientId);
+        }
+
+        private async Task SyncConditionsAsync(string patientId, List<ConditionInput> current)
+        {
+            if (string.IsNullOrEmpty(patientId))
+                throw new ArgumentException("Patient ID is required for update.");
+
+            var previous = await GetPatientConditionsAsync(patientId);
+            // INSERT new conditions
+            var toInsert = current
+                .Where(c => string.IsNullOrEmpty(c.Id))
+                .ToList();
+
+            foreach (var condition in toInsert)
+            {
+                condition.Id = await CreateCondition(condition, patientId);
+            }
+
+            // DELETE unselected
+            var toDelete = previous
+                .Where(existing => current.All(c => c.Id != existing.Id))
+                .ToList();
+
+            foreach (var condition in toDelete)
+            {
+                if (!string.IsNullOrEmpty(condition.Id))
+                {
+                    await DeleteCondition(condition.Id);
+                }
+            }
+        }
+
+        private async Task<string> CreateCondition(ConditionInput condition, string patientId)
+        {
+            var conditionPayLoad = new
+            {
+                resourceType = "Condition",
+                clinicalStatus = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://terminology.hl7.org/CodeSystem/condition-clinical",
+                                code = "active"
+                            }
+                        }
+                },
+                verificationStatus = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+                                code = "confirmed"
+                            }
+                        }
+                },
+                subject = new { reference = $"Patient/{patientId}" },
+                code = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://snomed.info/sct",
+                                code = condition.Code,
+                                display = condition.Display
+                            }
+                        }
+                }
+            };
+
+            return await FhirPostAsync("Condition", conditionPayLoad);
+        }
+
+        private async Task DeleteCondition(string conditionId)
+        {
+            await FhirDeleteAsync("Condition", conditionId);
+        }
+
+        private async Task SyncVitalSignsAsync(string patientId, List<VitalSignsInput> current, List<VitalSignsInput> previous)
+        {
+            if (string.IsNullOrEmpty(patientId))
+                throw new ArgumentException("Patient ID is required for update.");
+
+            // UPDATE modified (if needed)
+            foreach (var vital in current.Where(c => !string.IsNullOrEmpty(c.Id)))
+            {
+                var original = previous.FirstOrDefault(x => x.Id == vital.Id);
+                if (original != null && (original.Value != vital.Value))
+                {
+                    await UpdateVital(vital, patientId);
+                }
+            }
+
+            // INSERT new conditions
+            var toInsert = current
+                .Where(c => string.IsNullOrEmpty(c.Id))
+                .ToList();
+
+            foreach (var vital in toInsert)
+            {
+                vital.Id = await CreateVital(vital, patientId);
+            }
+
+            // DELETE unselected
+            var toDelete = previous
+                .Where(existing => current.All(c => c.Id != existing.Id))
+                .ToList();
+
+            foreach (var vital in toDelete)
+            {
+                if (!string.IsNullOrEmpty(vital.Id))
+                {
+                    await DeleteCondition(vital.Id);
+                }
+            }
+        }
+
+        private async Task<string> CreateVital(VitalSignsInput vital, string patientId)
+        {
+            var vitalPayLoad = new
+            {
+                resourceType = "Observation",
+                status = "final",
+                category = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "vital-signs",
+                                    display = "Vital Signs"
+                                }
+                            }
+                        }
+                    },
+                code = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = vital.Code,
+                                display = vital.Display
+                            }
+                        }
+                },
+                subject = new { reference = $"Patient/{patientId}" },
+                effectiveDateTime = DateTime.UtcNow.ToString("o"),
+                valueQuantity = new
+                {
+                    value = vital.Value ?? 0,
+                    unit = vital.Unit,
+                    system = "http://unitsofmeasure.org"
+                }
+            };
+
+            return await FhirPostAsync("Observation", vitalPayLoad);
+        }
+
+        private async Task<string> UpdateVital(VitalSignsInput vital, string patientId)
+        {
+            var vitalPayLoad = new
+            {
+                resourceType = "Observation",
+                id = vital.Id,
+                status = "final",
+                category = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "vital-signs",
+                                    display = "Vital Signs"
+                                }
+                            }
+                        }
+                    },
+                code = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = vital.Code,
+                                display = vital.Display
+                            }
+                        }
+                },
+                subject = new { reference = $"Patient/{patientId}" },
+                effectiveDateTime = DateTime.UtcNow.ToString("o"),
+                valueQuantity = new
+                {
+                    value = vital.Value ?? 0,
+                    unit = vital.Unit,
+                    system = "http://unitsofmeasure.org"
+                }
+            };
+
+            return await FhirPutAsync("Observation", vitalPayLoad, vital.Id);
+        }
+
+        private async Task SyncSocialHistoryAsync(string patientId, List<SocialHistoryInput> current, List<SocialHistoryInput> previous)
+        {
+            if (string.IsNullOrEmpty(patientId))
+                throw new ArgumentException("Patient ID is required for update.");
+
+            // UPDATE modified (if needed)
+            foreach (var social in current.Where(c => !string.IsNullOrEmpty(c.Id)))
+            {
+                var original = previous.FirstOrDefault(x => x.Id == social.Id);
+                if (original != null && (original.StatusCode != social.StatusCode || original.StatusDisplay != social.StatusDisplay || original.StatusValue != social.StatusValue))
+                {
+                    await UpdateSocialHistory(social, patientId);
+                }
+            }
+
+            // INSERT new conditions
+            var toInsert = current
+                .Where(c => string.IsNullOrEmpty(c.Id))
+                .ToList();
+
+            foreach (var social in toInsert)
+            {
+                social.Id = await CreateSocialHistory(social, patientId);
+            }
+
+            // DELETE unselected
+            var toDelete = previous
+                .Where(existing => current.All(c => c.Id != existing.Id))
+                .ToList();
+
+            foreach (var social in toDelete)
+            {
+                if (!string.IsNullOrEmpty(social.Id))
+                {
+                    await DeleteCondition(social.Id);
+                }
+            }
+        }
+
+        private async Task<string> CreateSocialHistory(SocialHistoryInput social, string patientId)
+        {
+            var payLoad = new Dictionary<string, object>
+            {
+                ["resourceType"] = "Observation",
+                ["status"] = "final",
+                ["category"] = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "social-history",
+                                    display = "Social History"
+                                }
+                            }
+                        }
+                    },
+                ["code"] = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = social.BehaviorCode,
+                                display = social.BehaviorName
+                            }
+                        }
+                },
+                ["subject"] = new { reference = $"Patient/{patientId}" },
+                ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+            };
+
+            if (Convert.ToInt32(social.StatusValue) > 0)
+            {
+                payLoad["valueInteger"] = social.StatusValue;
+            }
+            else if (string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+            {
+                payLoad["valueString"] = social.StatusDisplay;
+            }
+            else if (!string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+            {
+                payLoad["valueCodeableConcept"] = new
+                {
+                    coding = new[]
+                    {
+                            new {
+                                system = "http://snomed.info/sct",
+                                code = social.StatusCode,
+                                display = social.StatusDisplay
+                            }
+                        }
+                };
+            }
+
+            return await FhirPostAsync("Observation", payLoad);
+        }
+
+        private async Task<string> UpdateSocialHistory(SocialHistoryInput social, string patientId)
+        {
+            var payLoad = new Dictionary<string, object>
+            {
+                ["resourceType"] = "Observation",
+                ["id"] = social.Id,
+                ["status"] = "final",
+                ["category"] = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "social-history",
+                                    display = "Social History"
+                                }
+                            }
+                        }
+                    },
+                ["code"] = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = social.BehaviorCode,
+                                display = social.BehaviorName
+                            }
+                        }
+                },
+                ["subject"] = new { reference = $"Patient/{patientId}" },
+                ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+            };
+
+            if (Convert.ToInt32(social.StatusValue) > 0)
+            {
+                payLoad["valueInteger"] = social.StatusValue;
+            }
+            else if (string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+            {
+                payLoad["valueString"] = social.StatusDisplay;
+            }
+            else if (!string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+            {
+                payLoad["valueCodeableConcept"] = new
+                {
+                    coding = new[]
+                    {
+                            new {
+                                system = "http://snomed.info/sct",
+                                code = social.StatusCode,
+                                display = social.StatusDisplay
+                            }
+                        }
+                };
+            }
+
+            return await FhirPutAsync("Observation", payLoad, social.Id);
+        }
+
+        private async Task SyncLifeStyleAsync(string patientId, List<LifestyleInput> current, List<LifestyleInput> previous)
+        {
+            if (string.IsNullOrEmpty(patientId))
+                throw new ArgumentException("Patient ID is required for update.");
+
+            // UPDATE modified (if needed)
+            foreach (var life in current.Where(c => !string.IsNullOrEmpty(c.Id)))
+            {
+                var original = previous.FirstOrDefault(x => x.Id == life.Id);
+                if (original != null && (original.StatusCode != life.StatusCode || original.StatusDisplay != life.StatusDisplay || original.StatusValue != life.StatusValue))
+                {
+                    await UpdateLifestyle(life, patientId);
+                }
+            }
+
+            // INSERT new conditions
+            var toInsert = current
+                .Where(c => string.IsNullOrEmpty(c.Id))
+                .ToList();
+
+            foreach (var life in toInsert)
+            {
+                life.Id = await CreateLifeStyle(life, patientId);
+            }
+
+            // DELETE unselected
+            var toDelete = previous
+                .Where(existing => current.All(c => c.Id != existing.Id))
+                .ToList();
+
+            foreach (var life in toDelete)
+            {
+                if (!string.IsNullOrEmpty(life.Id))
+                {
+                    await DeleteCondition(life.Id);
+                }
+            }
+        }
+
+        private async Task<string> CreateLifeStyle(LifestyleInput lifeStyle, string patientId)
+        {
+            var payLoad = new Dictionary<string, object>
+            {
+                ["resourceType"] = "Observation",
+                ["status"] = "final",
+                ["category"] = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "lifestyle",
+                                    display = "Lifestyle"
+                                }
+                            }
+                        }
+                    },
+                ["code"] = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = lifeStyle.LifestyleCode,
+                                display = lifeStyle.LifestyleName
+                            }
+                        }
+                },
+                ["subject"] = new { reference = $"Patient/{patientId}" },
+                ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+            };
+
+            if (Convert.ToInt32(lifeStyle.StatusValue) > 0)
+            {
+                payLoad["valueInteger"] = lifeStyle.StatusValue;
+            }
+            else if (string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+            {
+                payLoad["valueString"] = lifeStyle.StatusDisplay;
+            }
+            else if (!string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+            {
+                payLoad["valueCodeableConcept"] = new
+                {
+                    coding = new[]
+                    {
+                            new {
+                                system = "http://snomed.info/sct",
+                                code = lifeStyle.StatusCode,
+                                display = lifeStyle.StatusDisplay
+                            }
+                        }
+                };
+            }
+
+            return await FhirPostAsync("Observation", payLoad);
+        }
+
+        private async Task<string> UpdateLifestyle(LifestyleInput lifeStyle, string patientId)
+        {
+            var payLoad = new Dictionary<string, object>
+            {
+                ["resourceType"] = "Observation",
+                ["id"] = lifeStyle.Id,
+                ["status"] = "final",
+                ["category"] = new[]
+                    {
+                        new {
+                            coding = new[]
+                            {
+                                new {
+                                    system = "http://terminology.hl7.org/CodeSystem/observation-category",
+                                    code = "lifestyle",
+                                    display = "Lifestyle"
+                                }
+                            }
+                        }
+                    },
+                ["code"] = new
+                {
+                    coding = new[]
+                        {
+                            new {
+                                system = "http://loinc.org",
+                                code = lifeStyle.LifestyleCode,
+                                display = lifeStyle.LifestyleName
+                            }
+                        }
+                },
+                ["subject"] = new { reference = $"Patient/{patientId}" },
+                ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+            };
+
+            if (Convert.ToInt32(lifeStyle.StatusValue) > 0)
+            {
+                payLoad["valueInteger"] = lifeStyle.StatusValue;
+            }
+            else if (string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+            {
+                payLoad["valueString"] = lifeStyle.StatusDisplay;
+            }
+            else if (!string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+            {
+                payLoad["valueCodeableConcept"] = new
+                {
+                    coding = new[]
+                    {
+                            new {
+                                system = "http://snomed.info/sct",
+                                code = lifeStyle.StatusCode,
+                                display = lifeStyle.StatusDisplay
+                            }
+                        }
+                };
+            }
+
+            return await FhirPutAsync("Observation", payLoad, lifeStyle.Id);
+        }
+
+        private async Task DeleteObservation(string observationId)
+        {
+            await FhirDeleteAsync("Observation", observationId);
+        }
+
+        //private async Task UpsertPastConditions(HttpClient client, string patientId, List<ConditionInput> conditions)
+        //{
+        //    var conditionList = new List<object>();
+        //    foreach (var condition in conditions)
+        //    {
+        //        conditionList.Add(new
+        //        {
+        //            resourceType = "Condition",
+        //            clinicalStatus = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://terminology.hl7.org/CodeSystem/condition-clinical",
+        //                        code = "active"
+        //                    }
+        //                }
+        //            },
+        //            verificationStatus = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://terminology.hl7.org/CodeSystem/condition-ver-status",
+        //                        code = "confirmed"
+        //                    }
+        //                }
+        //            },
+        //            subject = new { reference = $"Patient/{patientId}" },
+        //            code = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://snomed.info/sct",
+        //                        code = condition.Code,
+        //                        display = condition.Display
+        //                    }
+        //                }
+        //            }
+        //        });
+
+        //        //var newCondition = new Condition
+        //        //{
+        //        //    ClinicalStatus = "active",
+        //        //    VerificationStatus = "confirmed",
+        //        //    Subject = new FhirReference { Reference = $"Patient/{patientId}" },
+        //        //    Code = new CodeableConcept
+        //        //    {
+        //        //        Text = condition.Display,
+        //        //        Coding = new List<Coding>
+        //        //        {
+        //        //            new Coding
+        //        //            {
+        //        //                System = "http://snomed.info/sct",
+        //        //                Code = condition.Code,
+        //        //                Display = condition.Display
+        //        //            }
+        //        //        }
+        //        //    },
+        //        //    RecordedDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        //        //};
+
+        //        //conditionList.Add(newCondition);
+        //    }
+
+        //    if (conditions.Count > 0)
+        //        await CreateConditionsAsync(client, conditionList);
+        //}
+
+        //private async Task UpsertVitals(HttpClient client, string patientId, List<VitalSignsInput> vitals)
+        //{
+        //    var observations = new List<object>();
+
+        //    foreach (var vital in vitals)
+        //    {
+        //        observations.Add(new
+        //        {
+        //            resourceType = "Observation",
+        //            status = "final",
+        //            category = new[]
+        //            {
+        //                new {
+        //                    coding = new[]
+        //                    {
+        //                        new {
+        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //                            code = "vital-signs",
+        //                            display = "Vital Signs"
+        //                        }
+        //                    }
+        //                }
+        //            },
+        //            code = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://loinc.org",
+        //                        code = vital.Code,
+        //                        display = vital.Display
+        //                    }
+        //                }
+        //            },
+        //            subject = new { reference = $"Patient/{patientId}" },
+        //            effectiveDateTime = DateTime.UtcNow.ToString("o"),
+        //            valueQuantity = new
+        //            {
+        //                value = vital.Value ?? 0,
+        //                unit = vital.Unit,
+        //                system = "http://unitsofmeasure.org"
+        //            }
+        //        });
+
+        //        //var obs = new Observation
+        //        //{
+        //        //    Subject = new FhirReference { Reference = $"Patient/{patientId}" },
+        //        //    EffectiveDateTime = DateTime.UtcNow.ToString("o"),
+        //        //    Code = new CodeableConcept
+        //        //    {
+        //        //        Text = vital.Display + " " + vital.Unit,
+        //        //        Coding = new List<Coding>
+        //        //        {
+        //        //            new Coding
+        //        //            {
+        //        //                System = "http://loinc.org",
+        //        //                Code = vital.Code,
+        //        //                Display = vital.Display
+        //        //            }
+        //        //        }
+        //        //    },
+        //        //    Category = new List<CodeableConcept>
+        //        //    {
+        //        //        new CodeableConcept
+        //        //        {
+        //        //            Coding = new List<Coding>
+        //        //            {
+        //        //                new Coding
+        //        //                {
+        //        //                    System = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //        //                    Code = "vital-sign",
+        //        //                    Display = "Vital Sign"
+        //        //                }
+        //        //            }
+        //        //        }
+        //        //    },
+        //        //    ValueQuantity = new ValueQuantity
+        //        //    {
+        //        //        Value = vital.Value ?? 0,
+        //        //        Unit = vital.Unit,
+        //        //        System = "http://unitsofmeasure.org"
+        //        //    }
+        //        //};
+
+        //        //observations.Add(obs);
+        //    }
+
+        //    if (observations.Count > 0)
+        //        await CreateObservationsAsync(client, observations);
+        //}
+
+        //private async Task UpsertSocialHistory(HttpClient client, string patientId, List<SocialHistoryInput> socials)
+        //{
+        //    var observations = new List<object>();
+
+        //    foreach (var social in socials)
+        //    {
+        //        var obs = new Dictionary<string, object>
+        //        {
+        //            ["resourceType"] = "Observation",
+        //            ["status"] = "final",
+        //            ["category"] = new[]
+        //            {
+        //                new {
+        //                    coding = new[]
+        //                    {
+        //                        new {
+        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //                            code = "social-history",
+        //                            display = "Social History"
+        //                        }
+        //                    }
+        //                }
+        //            },
+        //            ["code"] = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://loinc.org",
+        //                        code = social.BehaviorCode,
+        //                        display = social.BehaviorName
+        //                    }
+        //                }
+        //            },
+        //            ["subject"] = new { reference = $"Patient/{patientId}" },
+        //            ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+        //        };
+
+        //        if (Convert.ToInt32(social.StatusValue) > 0)
+        //        {
+        //            obs["valueInteger"] = social.StatusValue;
+        //        }
+        //        else if (string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+        //        {
+        //            obs["valueString"] = social.StatusDisplay;
+        //        }
+        //        else if (!string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
+        //        {
+        //            obs["valueCodeableConcept"] = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://snomed.info/sct",
+        //                        code = social.StatusCode,
+        //                        display = social.StatusDisplay
+        //                    }
+        //                }
+        //            };
+        //        }
+
+        //        //    var obs = new Observation
+        //        //    {
+        //        //        Subject = new FhirReference { Reference = $"Patient/{patientId}" },
+        //        //        EffectiveDateTime = DateTime.UtcNow.ToString("o"),
+        //        //        Code = new CodeableConcept
+        //        //        {
+        //        //            Text = social.BehaviorName,
+        //        //            Coding = new List<Coding>
+        //        //            {
+        //        //                new Coding
+        //        //                {
+        //        //                    System = "http://loinc.org",
+        //        //                    Code = social.BehaviorCode,
+        //        //                    Display = social.BehaviorName
+        //        //                }
+        //        //            }
+        //        //        },
+        //        //        Category = new List<CodeableConcept>
+        //        //        {
+        //        //            new CodeableConcept
+        //        //            {
+        //        //                Coding = new List<Coding>
+        //        //                {
+        //        //                    new Coding
+        //        //                    {
+        //        //                        System = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //        //                        Code = "social-history",
+        //        //                        Display = "Social History"
+        //        //                    }
+        //        //                }
+        //        //            }
+        //        //        },
+        //        //        ValueString = new ValueString { Value = social.StatusDisplay }
+        //        //    };
+
+        //        observations.Add(obs);
+        //    }
+
+        //    if (observations.Count > 0)
+        //        await CreateObservationsAsync(client, observations);
+        //}
+
+        //private async Task UpsertLifeStyle(HttpClient client, string patientId, List<LifestyleInput> lifeStyleObs)
+        //{
+        //    var observations = new List<object>();
+
+        //    foreach (var lifeStyle in lifeStyleObs)
+        //    {
+        //        var obs = new Dictionary<string, object>
+        //        {
+        //            ["resourceType"] = "Observation",
+        //            ["status"] = "final",
+        //            ["category"] = new[]
+        //            {
+        //                new {
+        //                    coding = new[]
+        //                    {
+        //                        new {
+        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //                            code = "lifestyle",
+        //                            display = "Lifestyle"
+        //                        }
+        //                    }
+        //                }
+        //            },
+        //            ["code"] = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://loinc.org",
+        //                        code = lifeStyle.LifestyleCode,
+        //                        display = lifeStyle.LifestyleName
+        //                    }
+        //                }
+        //            },
+        //            ["subject"] = new { reference = $"Patient/{patientId}" },
+        //            ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
+        //        };
+
+        //        if (lifeStyle.StatusValue != null)
+        //        {
+        //            obs["valueInteger"] = lifeStyle.StatusValue;
+        //        }
+        //        else if (string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+        //        {
+        //            obs["valueString"] = lifeStyle.StatusDisplay;
+        //        }
+        //        else if (!string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
+        //        {
+        //            obs["valueCodeableConcept"] = new
+        //            {
+        //                coding = new[]
+        //                {
+        //                    new {
+        //                        system = "http://snomed.info/sct",
+        //                        code = lifeStyle.StatusCode,
+        //                        display = lifeStyle.StatusDisplay
+        //                    }
+        //                }
+        //            };
+        //        }
+
+        //        //    var obs = new Observation
+        //        //    {
+        //        //        Subject = new FhirReference { Reference = $"Patient/{patientId}" },
+        //        //        EffectiveDateTime = DateTime.UtcNow.ToString("o"),
+        //        //        Code = new CodeableConcept
+        //        //        {
+        //        //            Text = lifeStyle.LifestyleName,
+        //        //            Coding = new List<Coding>
+        //        //            {
+        //        //                new Coding
+        //        //                {
+        //        //                    System = "http://loinc.org",
+        //        //                    Code = lifeStyle.LifestyleCode,
+        //        //                    Display = lifeStyle.LifestyleName
+        //        //                }
+        //        //            }
+        //        //        },
+        //        //        Category = new List<CodeableConcept>
+        //        //        {
+        //        //            new CodeableConcept
+        //        //            {
+        //        //                Coding = new List<Coding>
+        //        //                {
+        //        //                    new Coding
+        //        //                    {
+        //        //                        System = "http://terminology.hl7.org/CodeSystem/observation-category",
+        //        //                        Code = "lifestyle",
+        //        //                        Display = "lifestyle"
+        //        //                    }
+        //        //                }
+        //        //            }
+        //        //        },
+        //        //        ValueString = new ValueString { Value = lifeStyle.StatusDisplay }
+        //        //    };
+
+        //        observations.Add(obs);
+        //    }
+
+        //    if (observations.Count > 0)
+        //        await CreateObservationsAsync(client, observations);
+        //}
+
         public async Task<List<ObservationSummary>> GetPatientObservationsAsync(string patientId, ObservationFilterType filterType = ObservationFilterType.All)
         {
             var token = await GetAccessTokenAsync();
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+            //var client = _httpClientFactory.CreateClient();
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
-            var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&_sort=-date&_count=100");
-            response.EnsureSuccessStatusCode();
+            //var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&_sort=-date&_count=100");
+            //response.EnsureSuccessStatusCode();
 
-            var content = await response.Content.ReadAsStringAsync();
-            var jsonDoc = JsonDocument.Parse(content);
+            //var content = await response.Content.ReadAsStringAsync();
+            //var jsonDoc = JsonDocument.Parse(content);
 
             var rawObservations = new List<ObservationSummary>();
+            var rootElement = await FhirGetAsync("Observation", $"subject=Patient/{patientId}&_sort=-date&_count=100");
 
-            if (!jsonDoc.RootElement.TryGetProperty("entry", out var entries))
+            if (!rootElement.TryGetProperty("entry", out var entries))
                 return rawObservations; // No observations found
 
             foreach (var entry in entries.EnumerateArray())
             {
                 var resource = entry.GetProperty("resource");
-                var codingArray = resource.GetProperty("code").GetProperty("coding");
+                var observable = ParseObservation(resource, string.Empty, patientId);
 
-                var firstCoding = codingArray[0];
-                var codeDisplay = firstCoding.GetProperty("display").GetString();
-                var codeSystem = firstCoding.GetProperty("system").GetString();
-                var codeValue = firstCoding.GetProperty("code").GetString();
-                
-                var effectiveDateTimeStr = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
-                DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
+                //var id = resource.GetProperty("id").GetString();
 
-                string value = "";
-                if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
-                    value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
-                else if (resource.TryGetProperty("valueString", out var valueString))
-                    value = valueString.GetString()?? "";
-                else if (resource.TryGetProperty("valueInteger", out var valueInt))
-                    value = valueInt.GetInt32().ToString();
+                //var codingArray = resource.GetProperty("code").GetProperty("coding");
 
-                string categories = resource.TryGetProperty("category", out var categoryArray) && categoryArray.ValueKind == JsonValueKind.Array
-                    ? string.Join(", ", categoryArray.EnumerateArray().Select(c => c.GetProperty("coding")[0].GetProperty("code").GetString()))
-                    : "";
+                //var firstCoding = codingArray[0];
+                //var codeDisplay = firstCoding.GetProperty("display").GetString();
+                //var codeSystem = firstCoding.GetProperty("system").GetString();
+                //var codeValue = firstCoding.GetProperty("code").GetString();
 
-                string device = string.Empty;
-                string performer = string.Empty;
+                //var effectiveDateTimeStr = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+                //DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
 
-                if (resource.TryGetProperty("device", out var deviceObj) && deviceObj.ValueKind == JsonValueKind.Object)
-                {
-                    device = deviceObj.TryGetProperty("reference", out var refProp) ? refProp.GetString() ?? "" : "";
-                }
+                //string value = "";
+                //if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
+                //    value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
+                //else if (resource.TryGetProperty("valueString", out var valueString))
+                //    value = valueString.GetString() ?? "";
+                //else if (resource.TryGetProperty("valueInteger", out var valueInt))
+                //    value = valueInt.GetInt32().ToString();
 
-                if (resource.TryGetProperty("performer", out var performerArray) && performerArray.ValueKind == JsonValueKind.Array)
-                {
-                    var firstPerformer = performerArray.EnumerateArray().FirstOrDefault();
-                    performer = firstPerformer.ValueKind == JsonValueKind.Object &&
-                                firstPerformer.TryGetProperty("reference", out var performerRef)
-                        ? performerRef.GetString() ?? ""
-                        : "";
-                }
+                //string categories = resource.TryGetProperty("category", out var categoryArray) && categoryArray.ValueKind == JsonValueKind.Array
+                //    ? string.Join(", ", categoryArray.EnumerateArray().Select(c => c.GetProperty("coding")[0].GetProperty("code").GetString()))
+                //    : "";
+
+                //string device = string.Empty;
+                //string performer = string.Empty;
+
+                //if (resource.TryGetProperty("device", out var deviceObj) && deviceObj.ValueKind == JsonValueKind.Object)
+                //{
+                //    device = deviceObj.TryGetProperty("reference", out var refProp) ? refProp.GetString() ?? "" : "";
+                //}
+
+                //if (resource.TryGetProperty("performer", out var performerArray) && performerArray.ValueKind == JsonValueKind.Array)
+                //{
+                //    var firstPerformer = performerArray.EnumerateArray().FirstOrDefault();
+                //    performer = firstPerformer.ValueKind == JsonValueKind.Object &&
+                //                firstPerformer.TryGetProperty("reference", out var performerRef)
+                //        ? performerRef.GetString() ?? ""
+                //        : "";
+                //}
 
                 // 🔥 Apply filters
                 bool include = filterType switch
                 {
                     ObservationFilterType.All => true,
-                    ObservationFilterType.WearableVitals => categories.Contains("vital-signs"),
-                    ObservationFilterType.SocialHistory => categories.Contains("social-history"),
-                    ObservationFilterType.Activity => categories.Contains("activity"),
-                    ObservationFilterType.Survey => categories.Contains("survey"),
-                    ObservationFilterType.Lifestyle => categories.Contains("lifestyle"),
-                    ObservationFilterType.Exam => categories.Contains("exam"),
-                                _ => true
+                    ObservationFilterType.WearableVitals => observable.Categories.Contains(_catVitalSign),
+                    ObservationFilterType.SocialHistory => observable.Categories.Contains(_catSocialHistory),
+                    ObservationFilterType.Activity => observable.Categories.Contains("activity"),
+                    ObservationFilterType.Survey => observable.Categories.Contains("survey"),
+                    ObservationFilterType.Lifestyle => observable.Categories.Contains(_catLifeStyle),
+                    ObservationFilterType.Exam => observable.Categories.Contains("exam"),
+                    _ => true
                 };
 
                 if (include)
                 {
-                    rawObservations.Add(new ObservationSummary
-                    {
-                        CodeDisplay = codeDisplay ?? "Unknown",
-                        CodeSystem = codeSystem ?? "",
-                        CodeValue = codeValue ?? "",
-                        Categories = categories,
-                        CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer :(categories.Equals("imaging")|| categories.Equals("laboratory")) ? $"lab/{patientId}" : $"self/{patientId}"),
-                        Value = value?? "",
-                        EffectiveDateTime = effectiveDateTimeStr?? DateTime.Now.ToString("o")
-                    });
+                    rawObservations.Add(observable);
                 }
             }
 
@@ -704,6 +2111,47 @@ namespace VirtualHealthAPI
                .ToList();
 
             return latestObservations;
+        }
+
+        private async Task<List<ConditionInput>> GetPatientConditionsAsync(string patientId)
+        {
+            //var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Condition?patient=Patient/{patientId}");
+            //response.EnsureSuccessStatusCode();
+
+            //var content = await response.Content.ReadAsStringAsync();
+
+            //var jsonDoc = JsonDocument.Parse(content);
+
+            var rawConditions = new List<ConditionInput>();
+            var rootElement = await FhirGetAsync("Condition", $"patient=Patient/{patientId}");
+
+            if (!rootElement.TryGetProperty("entry", out var entries))
+                return rawConditions; // No observations found
+
+            foreach (var entry in entries.EnumerateArray())
+            {
+                var resource = entry.GetProperty("resource");
+                var id = resource.GetProperty("id").GetString();
+                var codingArray = resource.GetProperty("code").GetProperty("coding");
+
+                var firstCoding = codingArray[0];
+                var codeDisplay = firstCoding.GetProperty("display").GetString();
+                var codeSystem = firstCoding.GetProperty("system").GetString();
+                var codeValue = firstCoding.GetProperty("code").GetString();
+
+                var effectiveDateTimeStr = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
+                DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
+
+
+                rawConditions.Add(new ConditionInput
+                {
+                    Id = id ?? string.Empty,
+                    Code = codeValue ?? string.Empty,
+                    Display = codeDisplay ?? "Unknown"
+                });
+            }
+
+            return rawConditions;
         }
 
         public async Task<List<VitalTrendResult>> GetVitalsTrendAsync(string patientId)
@@ -849,96 +2297,48 @@ namespace VirtualHealthAPI
             return vitals;
         }
 
-        public async Task<PatientProfileInput> GetPatientFullProfileByEmailAsync(string email)
+        private void ParseObservation(PatientProfileInput patientProfile, List<ObservationSummary> observations)
         {
-            var token = await GetAccessTokenAsync();
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
-
-            // 1. Search Patient by Email
-            var searchRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Patient?telecom=email%7C{Uri.EscapeDataString(email)}");
-            searchRes.EnsureSuccessStatusCode();
-            var searchJson = JsonDocument.Parse(await searchRes.Content.ReadAsStringAsync()).RootElement;
-
-            if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
-                throw new Exception($"No patient found with email {email}");
-
-            var patientJson = entries[0].GetProperty("resource");
-            var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
-
-            var patientProfile = new PatientProfileInput
-            {
-                PatientId = patientId,
-                PatientName = $"{patientJson.GetProperty("name")[0].GetProperty("given")[0].GetString()} {patientJson.GetProperty("name")[0].GetProperty("family").GetString()}",
-                FirstName = $"{patientJson.GetProperty("name")[0].GetProperty("given")[0].GetString()}",
-                LastName = $"{patientJson.GetProperty("name")[0].GetProperty("family").GetString()}",
-                BirthDate = patientJson.GetProperty("birthDate").GetString() ?? "",
-                Gender = patientJson.GetProperty("gender").GetString() ?? ""
-            };
-
-            // 2. Fetch Patient Email and Phone
-            if (patientJson.TryGetProperty("telecom", out var telecoms))
-            {
-                foreach (var telecom in telecoms.EnumerateArray())
+            //Category = "social-history"
+            patientProfile.SocialHistories = observations
+                .Where(o => o.Categories == _catSocialHistory)
+                .Select(s => new SocialHistoryInput
                 {
-                    var system = telecom.GetProperty("system").GetString();
-                    var value = telecom.GetProperty("value").GetString();
-                    if (system == "phone")
-                        patientProfile.PhoneNumber = value ?? "";
-                    else if (system == "email")
-                        patientProfile.Email = value ?? "";
-                }
-            }
+                    Id = s.Id,
+                    BehaviorCode = s.CodeValue,
+                    BehaviorName = s.CodeDisplay,
+                    StatusDisplay = Convert.ToInt32(s.decValue) > 0 ? Convert.ToString(s.decValue) : s.Value,
+                    StatusCode = s.StatusCode,
+                    StatusValue = int.TryParse(s.Value, out int parsedValue) ? parsedValue : 0
+                })
+                .ToList();
 
-            // 3. Fetch Emergency Contact
-            if (patientJson.TryGetProperty("contact", out var contacts))
-            {
-                var emergency = contacts[0]; // Assuming first contact is emergency
-                if (emergency.TryGetProperty("name", out var contactName))
+            //Category = "lifestyle"
+            patientProfile.LifestyleHistories = observations
+                .Where(o => o.Categories == _catLifeStyle)
+                .Select(s => new LifestyleInput
                 {
-                    patientProfile.EmergencyContactFirstName = contactName.GetProperty("given")[0].GetString() ?? "";
-                    patientProfile.EmergencyContactLastName = contactName.GetProperty("family").GetString() ?? "";
-                }
-                if (emergency.TryGetProperty("telecom", out var contactTelecoms))
+                    Id = s.Id,
+                    LifestyleCode = s.CodeValue,
+                    LifestyleName = s.CodeDisplay,
+                    StatusDisplay = Convert.ToInt32(s.decValue) > 0 ? Convert.ToString(s.decValue) : s.Value,
+                    StatusCode = s.StatusCode,
+                    StatusValue = int.TryParse(s.Value, out int parsedValue) ? parsedValue : 0
+                })
+                .ToList();
+
+            //Category = "vital-signs"
+            patientProfile.VitalSigns = observations
+                .Where(o => o.Categories == _catVitalSign)
+                .Select(s => new VitalSignsInput
                 {
-                    foreach (var contactTelecom in contactTelecoms.EnumerateArray())
-                    {
-                        if (contactTelecom.GetProperty("system").GetString() == "phone")
-                        {
-                            patientProfile.EmergencyContactPhone = contactTelecom.GetProperty("value").GetString() ?? "";
-                            break;
-                        }
-                    }
-                }
-            }
-
-            // 4. Fetch Practitioner (PCP)
-            if (patientJson.TryGetProperty("generalPractitioner", out var gpList))
-            {
-                var practitionerRef = gpList[0].GetProperty("reference").GetString(); // e.g., Practitioner/123
-                if (practitionerRef != null)
-                {
-                    var practitionerId = practitionerRef.Split('/')[1];
-                    var practitionerRes = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Practitioner/{practitionerId}");
-                    practitionerRes.EnsureSuccessStatusCode();
-                    var practitionerJson = JsonDocument.Parse(await practitionerRes.Content.ReadAsStringAsync()).RootElement;
-
-                    patientProfile.Pcp = new PractitionerInput
-                    {
-                        PractitionerId = practitionerId,
-                        PractitionerName = $"{practitionerJson.GetProperty("name")[0].GetProperty("given")[0].GetString()} {practitionerJson.GetProperty("name")[0].GetProperty("family").GetString()}",
-                        FirstName = $"{practitionerJson.GetProperty("name")[0].GetProperty("given")[0].GetString()}",
-                        LastName = $"{practitionerJson.GetProperty("name")[0].GetProperty("family").GetString()}",
-                        Gender = practitionerJson.GetProperty("gender").GetString() ?? "",
-                        Email = practitionerJson.TryGetProperty("telecom", out var pcpTelecom) && pcpTelecom.GetArrayLength() > 0
-                                ? pcpTelecom[0].GetProperty("value").GetString() ?? ""
-                                : ""
-                    };
-                }
-            }
-
-            return patientProfile;
+                    Id = s.Id,
+                    Code = s.CodeValue,
+                    Display = s.CodeDisplay,
+                    Value = s.decValue,
+                    Unit = s.unit ?? string.Empty
+                })
+                .ToList();
         }
 
         public async Task<string> SaveLabResultsAsync(LabResultsInput input)
@@ -1088,7 +2488,7 @@ namespace VirtualHealthAPI
                 {
                     resourceType = "Observation",
                     status = "final",
-                    performer = new[] {new { reference = $"Practitioner/{pcpId}"}},
+                    performer = new[] { new { reference = $"Practitioner/{pcpId}" } },
                     category = new[]
                     {
                 new
@@ -1408,7 +2808,7 @@ namespace VirtualHealthAPI
                         CodeValue = codeValue ?? "",
                         Categories = category,
                         Value = value,
-                       // CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : $"self/{patientId}"),
+                        // CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : $"self/{patientId}"),
                         EffectiveDateTime = effectiveDateTime
                     });
                 }
@@ -1444,7 +2844,7 @@ namespace VirtualHealthAPI
                     foreach (var entry in entries.EnumerateArray())
                     {
                         var resource = entry.GetProperty("resource");
-                        output.GeneralLabs.Add(ParseObservation(resource, "laboratory"));
+                        output.GeneralLabs.Add(ParseObservation(resource, "laboratory", patientId));
                     }
                 }
             }
@@ -1461,7 +2861,7 @@ namespace VirtualHealthAPI
                     foreach (var entry in entries.EnumerateArray())
                     {
                         var resource = entry.GetProperty("resource");
-                        output.ImagingResults.Add(ParseObservation(resource, "imaging"));
+                        output.ImagingResults.Add(ParseObservation(resource, "imaging", patientId));
                     }
                 }
             }
@@ -1470,32 +2870,170 @@ namespace VirtualHealthAPI
         }
 
         // Helper to parse Observation resource
-        private ObservationSummary ParseObservation(JsonElement resource, string category)
+        private ObservationSummary ParseObservation(JsonElement resource, string? category, string? patientId)
         {
+            var id = resource.GetProperty("id").GetString();
             var codingArray = resource.GetProperty("code").GetProperty("coding");
             var firstCoding = codingArray[0];
+
             var codeDisplay = firstCoding.GetProperty("display").GetString();
             var codeSystem = firstCoding.GetProperty("system").GetString();
             var codeValue = firstCoding.GetProperty("code").GetString();
             var effectiveDateTime = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
 
-            string value = "";
+            string value = ""; decimal? decValue = null; string statusCode = string.Empty; string? unit = string.Empty;
             if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
+            {
                 value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
+                decValue = valueQuantity.GetProperty("value").GetDecimal();
+                unit = valueQuantity.GetProperty("unit").GetString();
+            }
+            else if (resource.TryGetProperty("valueCodeableConcept", out var valueCodeableConcept))
+            {
+                var codeableArray = resource.GetProperty("valueCodeableConcept").GetProperty("coding");
+                var firstCode = codeableArray[0];
+                value = firstCode.GetProperty("display").GetString() ?? string.Empty;
+                statusCode = firstCode.GetProperty("code").GetString() ?? string.Empty;
+            }
             else if (resource.TryGetProperty("valueString", out var valueString))
-                value = valueString.GetString();
+                value = valueString.GetString() ?? string.Empty;
             else if (resource.TryGetProperty("valueInteger", out var valueInt))
                 value = valueInt.GetInt32().ToString();
 
+            if (string.IsNullOrEmpty(category))
+                category = resource.TryGetProperty("category", out var categoryArray) && categoryArray.ValueKind == JsonValueKind.Array
+                    ? string.Join(", ", categoryArray.EnumerateArray().Select(c => c.GetProperty("coding")[0].GetProperty("code").GetString()))
+                    : "";
+
+            string device = string.Empty;
+            string performer = string.Empty;
+
+            if (resource.TryGetProperty("device", out var deviceObj) && deviceObj.ValueKind == JsonValueKind.Object)
+            {
+                device = deviceObj.TryGetProperty("reference", out var refProp) ? refProp.GetString() ?? "" : "";
+            }
+
+            if (resource.TryGetProperty("performer", out var performerArray) && performerArray.ValueKind == JsonValueKind.Array)
+            {
+                var firstPerformer = performerArray.EnumerateArray().FirstOrDefault();
+                performer = firstPerformer.ValueKind == JsonValueKind.Object &&
+                            firstPerformer.TryGetProperty("reference", out var performerRef)
+                    ? performerRef.GetString() ?? ""
+                    : "";
+            }
+
             return new ObservationSummary
             {
+                Id = id ?? string.Empty,
                 CodeDisplay = codeDisplay ?? "Unknown",
                 CodeSystem = codeSystem ?? "",
                 CodeValue = codeValue ?? "",
                 Categories = category,
-                Value = value,
-                EffectiveDateTime = effectiveDateTime
+                CapturedBy = !string.IsNullOrEmpty(device) ? device : (!string.IsNullOrEmpty(performer) ? performer : (category.Equals("imaging") || category.Equals("laboratory")) ? $"lab/{patientId}" : $"self/{patientId}"),
+                Value = value ?? "",
+                decValue = decValue,
+                unit = unit ?? string.Empty,
+                StatusCode = statusCode,
+                EffectiveDateTime = effectiveDateTime ?? DateTime.Now.ToString("o")
             };
+        }
+
+        //public async Task CreateConditionsAsync(HttpClient client, List<object> conditions)
+        //{
+        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Condition";
+        //    foreach (var condition in conditions)
+        //    {
+        //        var obsJson = JsonSerializer.Serialize(condition);
+        //        var response = await client.PostAsync(apiUrl,
+        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
+
+        //        response.EnsureSuccessStatusCode();
+        //    }
+
+        //    Console.WriteLine("Condition created successfully.");
+        //}
+
+        //public async Task UpdateConditionsAsync(HttpClient client, List<Condition> conditions)
+        //{
+        //    foreach (var condition in conditions)
+        //    {
+        //        if (string.IsNullOrEmpty(condition.Id))
+        //            throw new ArgumentException("Condition ID is required for update.");
+
+        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Condition/{condition.Id}", condition);
+        //        response.EnsureSuccessStatusCode();
+        //    }
+
+        //    Console.WriteLine("Condition updated successfully.");
+        //}
+
+        //private async Task CreateObservationsAsync(HttpClient client, List<object> observations)
+        //{
+        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Observation";
+        //    foreach (var obs in observations)
+        //    {
+        //        var obsJson = JsonSerializer.Serialize(obs);
+        //        var response = await client.PostAsync(apiUrl,
+        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
+
+        //        response.EnsureSuccessStatusCode();
+        //    }
+
+        //    Console.WriteLine("Observations created successfully.");
+        //}
+
+        //private async Task UpdateObservationAsync(HttpClient client, List<Observation> observations)
+        //{
+        //    foreach (var obs in observations)
+        //    {
+        //        if (string.IsNullOrEmpty(obs.Id))
+        //            throw new ArgumentException("Observation ID is required for update.");
+
+        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Observation/{obs.Id}", obs);
+        //        response.EnsureSuccessStatusCode();
+        //    }
+
+        //    Console.WriteLine("Observations updated successfully.");
+        //}
+
+        private async Task<JsonElement> FhirGetAsync(string resourceType, string query)
+        {
+            string apiUrl = $"{_apiBaseUrl}/{resourceType}";
+            if (!string.IsNullOrEmpty(query))
+                apiUrl = $"{_apiBaseUrl}/{resourceType}?{query}";
+
+            var response = await _httpClient.GetAsync(apiUrl);
+
+            response.EnsureSuccessStatusCode();
+            var jsonDoc = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement;
+            return jsonDoc;
+        }
+
+        private async Task<string> FhirPostAsync(string resourceType, object objData)
+        {
+            var obsJson = JsonSerializer.Serialize(objData);
+            var response = await _httpClient.PostAsync($"{_apiBaseUrl}/{resourceType}",
+                new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
+
+            response.EnsureSuccessStatusCode();
+            var id = JsonDocument.Parse(await response.Content.ReadAsStringAsync()).RootElement.GetProperty("id").GetString();
+            return id ?? string.Empty;
+        }
+
+        private async Task<string> FhirPutAsync(string resourceType, object objData, string id)
+        {
+            var obsJson = JsonSerializer.Serialize(objData);
+            var response = await _httpClient.PutAsync($"{_apiBaseUrl}/{resourceType}/{id}",
+                new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
+
+            response.EnsureSuccessStatusCode();
+            return id ?? string.Empty;
+        }
+
+        public async Task FhirDeleteAsync(string resourceType, string id)
+        {
+            var response = await _httpClient.DeleteAsync($"{_apiBaseUrl}/{resourceType}/{id}");
+            response.EnsureSuccessStatusCode();
         }
 
     }
