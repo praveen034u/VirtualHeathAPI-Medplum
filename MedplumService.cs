@@ -1,6 +1,5 @@
 using System;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using InfluxDB.Client.Api.Domain;
@@ -960,14 +959,12 @@ namespace VirtualHealthAPI
 
             await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
 
-            await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
-
             await SyncLifeStyleAsync(patientId, input.LifestyleHistories, previousProfile.LifestyleHistories);
 
             // 4. Insert Conditions if exists
             await SyncConditionsAsync(patientId, input.PastConditions);
 
-            return $"Patient {patientId} created with PCP.";
+            return patientId;
         }
 
         private async Task<string> CreatePractitioner(PractitionerInput practitioner)
@@ -1037,7 +1034,7 @@ namespace VirtualHealthAPI
                             }
                         },
                 gender = patient.Gender,
-                birthDate = patient.BirthDate,
+                birthDate = DateTime.Parse(patient.BirthDate).ToString("yyyy-MM-dd"),
                 telecom = new[]
                             {
                                 new {
@@ -1119,7 +1116,7 @@ namespace VirtualHealthAPI
                             }
                         },
                 gender = patient.Gender,
-                birthDate = patient.BirthDate,
+                birthDate = DateTime.Parse(patient.BirthDate).ToString("yyyy-MM-dd"),
                 telecom = new[]
                             {
                                 new {
@@ -2770,64 +2767,6 @@ namespace VirtualHealthAPI
                 EffectiveDateTime = effectiveDateTime ?? DateTime.Now.ToString("o")
             };
         }
-
-        //public async Task CreateConditionsAsync(HttpClient client, List<object> conditions)
-        //{
-        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Condition";
-        //    foreach (var condition in conditions)
-        //    {
-        //        var obsJson = JsonSerializer.Serialize(condition);
-        //        var response = await client.PostAsync(apiUrl,
-        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
-
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Condition created successfully.");
-        //}
-
-        //public async Task UpdateConditionsAsync(HttpClient client, List<Condition> conditions)
-        //{
-        //    foreach (var condition in conditions)
-        //    {
-        //        if (string.IsNullOrEmpty(condition.Id))
-        //            throw new ArgumentException("Condition ID is required for update.");
-
-        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Condition/{condition.Id}", condition);
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Condition updated successfully.");
-        //}
-
-        //private async Task CreateObservationsAsync(HttpClient client, List<object> observations)
-        //{
-        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Observation";
-        //    foreach (var obs in observations)
-        //    {
-        //        var obsJson = JsonSerializer.Serialize(obs);
-        //        var response = await client.PostAsync(apiUrl,
-        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
-
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Observations created successfully.");
-        //}
-
-        //private async Task UpdateObservationAsync(HttpClient client, List<Observation> observations)
-        //{
-        //    foreach (var obs in observations)
-        //    {
-        //        if (string.IsNullOrEmpty(obs.Id))
-        //            throw new ArgumentException("Observation ID is required for update.");
-
-        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Observation/{obs.Id}", obs);
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Observations updated successfully.");
-        //}
 
         private async Task<JsonElement> FhirGetAsync(string resourceType, string query)
         {
