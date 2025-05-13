@@ -1,10 +1,7 @@
-﻿using System.Net.Http;
+﻿using System.Globalization;
 using System.Net.Http.Headers;
-using System.Reflection;
 using System.Text;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace VirtualHealthAPI
 {
@@ -895,14 +892,12 @@ namespace VirtualHealthAPI
 
             await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
 
-            await SyncSocialHistoryAsync(patientId, input.SocialHistories, previousProfile.SocialHistories);
-
             await SyncLifeStyleAsync(patientId, input.LifestyleHistories, previousProfile.LifestyleHistories);
 
             // 4. Insert Conditions if exists
             await SyncConditionsAsync(patientId, input.PastConditions);
 
-            return $"Patient {patientId} created with PCP.";
+            return patientId;
         }
 
         private async Task<string> CreatePractitioner(PractitionerInput practitioner)
@@ -972,7 +967,7 @@ namespace VirtualHealthAPI
                             }
                         },
                 gender = patient.Gender,
-                birthDate = patient.BirthDate,
+                birthDate = DateTime.Parse(patient.BirthDate).ToString("yyyy-MM-dd"),
                 telecom = new[]
                             {
                                 new {
@@ -1054,7 +1049,7 @@ namespace VirtualHealthAPI
                             }
                         },
                 gender = patient.Gender,
-                birthDate = patient.BirthDate,
+                birthDate = DateTime.Parse(patient.BirthDate).ToString("yyyy-MM-dd"),
                 telecom = new[]
                             {
                                 new {
@@ -1648,373 +1643,6 @@ namespace VirtualHealthAPI
         {
             await FhirDeleteAsync("Observation", observationId);
         }
-
-        //private async Task UpsertPastConditions(HttpClient client, string patientId, List<ConditionInput> conditions)
-        //{
-        //    var conditionList = new List<object>();
-        //    foreach (var condition in conditions)
-        //    {
-        //        conditionList.Add(new
-        //        {
-        //            resourceType = "Condition",
-        //            clinicalStatus = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://terminology.hl7.org/CodeSystem/condition-clinical",
-        //                        code = "active"
-        //                    }
-        //                }
-        //            },
-        //            verificationStatus = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://terminology.hl7.org/CodeSystem/condition-ver-status",
-        //                        code = "confirmed"
-        //                    }
-        //                }
-        //            },
-        //            subject = new { reference = $"Patient/{patientId}" },
-        //            code = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://snomed.info/sct",
-        //                        code = condition.Code,
-        //                        display = condition.Display
-        //                    }
-        //                }
-        //            }
-        //        });
-
-        //        //var newCondition = new Condition
-        //        //{
-        //        //    ClinicalStatus = "active",
-        //        //    VerificationStatus = "confirmed",
-        //        //    Subject = new FhirReference { Reference = $"Patient/{patientId}" },
-        //        //    Code = new CodeableConcept
-        //        //    {
-        //        //        Text = condition.Display,
-        //        //        Coding = new List<Coding>
-        //        //        {
-        //        //            new Coding
-        //        //            {
-        //        //                System = "http://snomed.info/sct",
-        //        //                Code = condition.Code,
-        //        //                Display = condition.Display
-        //        //            }
-        //        //        }
-        //        //    },
-        //        //    RecordedDate = DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
-        //        //};
-
-        //        //conditionList.Add(newCondition);
-        //    }
-
-        //    if (conditions.Count > 0)
-        //        await CreateConditionsAsync(client, conditionList);
-        //}
-
-        //private async Task UpsertVitals(HttpClient client, string patientId, List<VitalSignsInput> vitals)
-        //{
-        //    var observations = new List<object>();
-
-        //    foreach (var vital in vitals)
-        //    {
-        //        observations.Add(new
-        //        {
-        //            resourceType = "Observation",
-        //            status = "final",
-        //            category = new[]
-        //            {
-        //                new {
-        //                    coding = new[]
-        //                    {
-        //                        new {
-        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //                            code = "vital-signs",
-        //                            display = "Vital Signs"
-        //                        }
-        //                    }
-        //                }
-        //            },
-        //            code = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://loinc.org",
-        //                        code = vital.Code,
-        //                        display = vital.Display
-        //                    }
-        //                }
-        //            },
-        //            subject = new { reference = $"Patient/{patientId}" },
-        //            effectiveDateTime = DateTime.UtcNow.ToString("o"),
-        //            valueQuantity = new
-        //            {
-        //                value = vital.Value ?? 0,
-        //                unit = vital.Unit,
-        //                system = "http://unitsofmeasure.org"
-        //            }
-        //        });
-
-        //        //var obs = new Observation
-        //        //{
-        //        //    Subject = new FhirReference { Reference = $"Patient/{patientId}" },
-        //        //    EffectiveDateTime = DateTime.UtcNow.ToString("o"),
-        //        //    Code = new CodeableConcept
-        //        //    {
-        //        //        Text = vital.Display + " " + vital.Unit,
-        //        //        Coding = new List<Coding>
-        //        //        {
-        //        //            new Coding
-        //        //            {
-        //        //                System = "http://loinc.org",
-        //        //                Code = vital.Code,
-        //        //                Display = vital.Display
-        //        //            }
-        //        //        }
-        //        //    },
-        //        //    Category = new List<CodeableConcept>
-        //        //    {
-        //        //        new CodeableConcept
-        //        //        {
-        //        //            Coding = new List<Coding>
-        //        //            {
-        //        //                new Coding
-        //        //                {
-        //        //                    System = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //        //                    Code = "vital-sign",
-        //        //                    Display = "Vital Sign"
-        //        //                }
-        //        //            }
-        //        //        }
-        //        //    },
-        //        //    ValueQuantity = new ValueQuantity
-        //        //    {
-        //        //        Value = vital.Value ?? 0,
-        //        //        Unit = vital.Unit,
-        //        //        System = "http://unitsofmeasure.org"
-        //        //    }
-        //        //};
-
-        //        //observations.Add(obs);
-        //    }
-
-        //    if (observations.Count > 0)
-        //        await CreateObservationsAsync(client, observations);
-        //}
-
-        //private async Task UpsertSocialHistory(HttpClient client, string patientId, List<SocialHistoryInput> socials)
-        //{
-        //    var observations = new List<object>();
-
-        //    foreach (var social in socials)
-        //    {
-        //        var obs = new Dictionary<string, object>
-        //        {
-        //            ["resourceType"] = "Observation",
-        //            ["status"] = "final",
-        //            ["category"] = new[]
-        //            {
-        //                new {
-        //                    coding = new[]
-        //                    {
-        //                        new {
-        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //                            code = "social-history",
-        //                            display = "Social History"
-        //                        }
-        //                    }
-        //                }
-        //            },
-        //            ["code"] = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://loinc.org",
-        //                        code = social.BehaviorCode,
-        //                        display = social.BehaviorName
-        //                    }
-        //                }
-        //            },
-        //            ["subject"] = new { reference = $"Patient/{patientId}" },
-        //            ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
-        //        };
-
-        //        if (Convert.ToInt32(social.StatusValue) > 0)
-        //        {
-        //            obs["valueInteger"] = social.StatusValue;
-        //        }
-        //        else if (string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
-        //        {
-        //            obs["valueString"] = social.StatusDisplay;
-        //        }
-        //        else if (!string.IsNullOrEmpty(social.StatusCode) && !string.IsNullOrEmpty(social.StatusDisplay))
-        //        {
-        //            obs["valueCodeableConcept"] = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://snomed.info/sct",
-        //                        code = social.StatusCode,
-        //                        display = social.StatusDisplay
-        //                    }
-        //                }
-        //            };
-        //        }
-
-        //        //    var obs = new Observation
-        //        //    {
-        //        //        Subject = new FhirReference { Reference = $"Patient/{patientId}" },
-        //        //        EffectiveDateTime = DateTime.UtcNow.ToString("o"),
-        //        //        Code = new CodeableConcept
-        //        //        {
-        //        //            Text = social.BehaviorName,
-        //        //            Coding = new List<Coding>
-        //        //            {
-        //        //                new Coding
-        //        //                {
-        //        //                    System = "http://loinc.org",
-        //        //                    Code = social.BehaviorCode,
-        //        //                    Display = social.BehaviorName
-        //        //                }
-        //        //            }
-        //        //        },
-        //        //        Category = new List<CodeableConcept>
-        //        //        {
-        //        //            new CodeableConcept
-        //        //            {
-        //        //                Coding = new List<Coding>
-        //        //                {
-        //        //                    new Coding
-        //        //                    {
-        //        //                        System = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //        //                        Code = "social-history",
-        //        //                        Display = "Social History"
-        //        //                    }
-        //        //                }
-        //        //            }
-        //        //        },
-        //        //        ValueString = new ValueString { Value = social.StatusDisplay }
-        //        //    };
-
-        //        observations.Add(obs);
-        //    }
-
-        //    if (observations.Count > 0)
-        //        await CreateObservationsAsync(client, observations);
-        //}
-
-        //private async Task UpsertLifeStyle(HttpClient client, string patientId, List<LifestyleInput> lifeStyleObs)
-        //{
-        //    var observations = new List<object>();
-
-        //    foreach (var lifeStyle in lifeStyleObs)
-        //    {
-        //        var obs = new Dictionary<string, object>
-        //        {
-        //            ["resourceType"] = "Observation",
-        //            ["status"] = "final",
-        //            ["category"] = new[]
-        //            {
-        //                new {
-        //                    coding = new[]
-        //                    {
-        //                        new {
-        //                            system = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //                            code = "lifestyle",
-        //                            display = "Lifestyle"
-        //                        }
-        //                    }
-        //                }
-        //            },
-        //            ["code"] = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://loinc.org",
-        //                        code = lifeStyle.LifestyleCode,
-        //                        display = lifeStyle.LifestyleName
-        //                    }
-        //                }
-        //            },
-        //            ["subject"] = new { reference = $"Patient/{patientId}" },
-        //            ["effectiveDateTime"] = DateTime.UtcNow.ToString("o"),
-        //        };
-
-        //        if (lifeStyle.StatusValue != null)
-        //        {
-        //            obs["valueInteger"] = lifeStyle.StatusValue;
-        //        }
-        //        else if (string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
-        //        {
-        //            obs["valueString"] = lifeStyle.StatusDisplay;
-        //        }
-        //        else if (!string.IsNullOrEmpty(lifeStyle.StatusCode) && !string.IsNullOrEmpty(lifeStyle.StatusDisplay))
-        //        {
-        //            obs["valueCodeableConcept"] = new
-        //            {
-        //                coding = new[]
-        //                {
-        //                    new {
-        //                        system = "http://snomed.info/sct",
-        //                        code = lifeStyle.StatusCode,
-        //                        display = lifeStyle.StatusDisplay
-        //                    }
-        //                }
-        //            };
-        //        }
-
-        //        //    var obs = new Observation
-        //        //    {
-        //        //        Subject = new FhirReference { Reference = $"Patient/{patientId}" },
-        //        //        EffectiveDateTime = DateTime.UtcNow.ToString("o"),
-        //        //        Code = new CodeableConcept
-        //        //        {
-        //        //            Text = lifeStyle.LifestyleName,
-        //        //            Coding = new List<Coding>
-        //        //            {
-        //        //                new Coding
-        //        //                {
-        //        //                    System = "http://loinc.org",
-        //        //                    Code = lifeStyle.LifestyleCode,
-        //        //                    Display = lifeStyle.LifestyleName
-        //        //                }
-        //        //            }
-        //        //        },
-        //        //        Category = new List<CodeableConcept>
-        //        //        {
-        //        //            new CodeableConcept
-        //        //            {
-        //        //                Coding = new List<Coding>
-        //        //                {
-        //        //                    new Coding
-        //        //                    {
-        //        //                        System = "http://terminology.hl7.org/CodeSystem/observation-category",
-        //        //                        Code = "lifestyle",
-        //        //                        Display = "lifestyle"
-        //        //                    }
-        //        //                }
-        //        //            }
-        //        //        },
-        //        //        ValueString = new ValueString { Value = lifeStyle.StatusDisplay }
-        //        //    };
-
-        //        observations.Add(obs);
-        //    }
-
-        //    if (observations.Count > 0)
-        //        await CreateObservationsAsync(client, observations);
-        //}
 
         public async Task<List<ObservationSummary>> GetPatientObservationsAsync(string patientId, ObservationFilterType filterType = ObservationFilterType.All)
         {
@@ -2937,64 +2565,6 @@ namespace VirtualHealthAPI
                 EffectiveDateTime = effectiveDateTime ?? DateTime.Now.ToString("o")
             };
         }
-
-        //public async Task CreateConditionsAsync(HttpClient client, List<object> conditions)
-        //{
-        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Condition";
-        //    foreach (var condition in conditions)
-        //    {
-        //        var obsJson = JsonSerializer.Serialize(condition);
-        //        var response = await client.PostAsync(apiUrl,
-        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
-
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Condition created successfully.");
-        //}
-
-        //public async Task UpdateConditionsAsync(HttpClient client, List<Condition> conditions)
-        //{
-        //    foreach (var condition in conditions)
-        //    {
-        //        if (string.IsNullOrEmpty(condition.Id))
-        //            throw new ArgumentException("Condition ID is required for update.");
-
-        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Condition/{condition.Id}", condition);
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Condition updated successfully.");
-        //}
-
-        //private async Task CreateObservationsAsync(HttpClient client, List<object> observations)
-        //{
-        //    string apiUrl = $"{_config["Medplum:FhirUrl"]}/Observation";
-        //    foreach (var obs in observations)
-        //    {
-        //        var obsJson = JsonSerializer.Serialize(obs);
-        //        var response = await client.PostAsync(apiUrl,
-        //            new StringContent(obsJson, Encoding.UTF8, "application/fhir+json"));
-
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Observations created successfully.");
-        //}
-
-        //private async Task UpdateObservationAsync(HttpClient client, List<Observation> observations)
-        //{
-        //    foreach (var obs in observations)
-        //    {
-        //        if (string.IsNullOrEmpty(obs.Id))
-        //            throw new ArgumentException("Observation ID is required for update.");
-
-        //        var response = await client.PutAsJsonAsync($"{_config["Medplum:FhirUrl"]}/Observation/{obs.Id}", obs);
-        //        response.EnsureSuccessStatusCode();
-        //    }
-
-        //    Console.WriteLine("Observations updated successfully.");
-        //}
 
         private async Task<JsonElement> FhirGetAsync(string resourceType, string query)
         {
