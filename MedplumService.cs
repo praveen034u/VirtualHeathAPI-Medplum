@@ -1,27 +1,45 @@
-﻿using System.Globalization;
+using System;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Writes;
+using Microsoft.AspNetCore.Connections.Features;
+using Microsoft.Extensions.Configuration;
+using InfluxDB.Client;
+using InfluxDB.Client.Api.Domain;
+using InfluxDB.Client.Writes;
+using System.Net.Sockets;
 
 namespace VirtualHealthAPI
 {
     public class MedplumService
     {
+        private readonly InfluxDBClient _influxClient;
+        private readonly string _bucket;
+        private readonly string _org;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly IConfiguration _config;
         private readonly string _apiBaseUrl;
         private readonly HttpClient _httpClient;
-
         private readonly string _catSocialHistory = "social-history";
         private readonly string _catLifeStyle = "lifestyle";
         private readonly string _catVitalSign = "vital-signs";
-
-        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config)
+        private readonly string _influxUrl;
+        private readonly char[] _token;
+      
+        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
-            _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
-            _httpClient = httpClientFactory.CreateClient();
+
+            //_influxUrl = config["Influx:Url"];
+            //_token = config["Influx:Token"].ToCharArray();
+            _org = config["Influx:Org"]!;
+            _bucket = config["Influx:Bucket"]!;
+
+            //_influxClient = InfluxDBClientFactory.Create(_influxUrl, new string(_token));
+            _influxClient = influxClient;
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -46,7 +64,56 @@ namespace VirtualHealthAPI
             return token!;
         }
 
-        public async Task<string> IngestWearableObservationsAsync(WearableVitalsInput input)
+        public async Task<string> IngestWearableObservationsDataStoreAsync(WearableVitalsInput input)
+        {
+
+            // write the logic to store the data from device to influx db
+            // var point = PointData
+            //.Measurement("vitals")
+            //.Tag("device", "wearable-1")
+            //.Field("heartRate", heartRate)
+            //.Field("spo2", spo2)
+            //.Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+
+            // using (var writeApi = _influxClient.GetWriteApiAsync())
+            // {
+            //     await writeApi.WritePointAsync(point, _bucket, _org);
+            // }
+            var writeApi = _influxClient.GetWriteApiAsync();
+      
+                var point = PointData
+                    .Measurement("vitals")
+                    .Tag("deviceId", input.DeviceId)
+                    .Tag("patientId", input.PatientId)
+                    //.Field("deviceId", input.DeviceId)
+                    .Field("heartRate", (int)(input.HeartRate ?? 0))
+                    .Field("systolicBp", (int)(input.Systolic ?? 0))
+                    .Field("diastolicBp", (int)(input.Diastolic ?? 0))
+                    .Field("spo2", (int)(input.Spo2 ?? 0))
+                    .Field("temperature", input.Temperature ?? 0)
+                    .Field("steps", (int)(input.Steps ?? 0))
+                    .Field("respiratoryRate", (int)(input.RespiratoryRate ?? 0))
+                    .Field("bloodGlucose", (int)(input.BloodGlucose ?? 0))
+                   // .Field("bloodPressure", $"{input.Systolic}/{input.Diastolic}")
+                    .Field("caloriesBurned", (int)(input.CaloriesBurned ?? 0))
+                    .Field("heartRateVariability", (int)(input.HeartRateVariability ?? 0))
+                    .Field("vo2Max", (int)(input.Vo2Max ?? 0))
+                    .Field("skinTemperature", input.SkinTemperature ?? 0)
+                    .Field("sleepDuration", input.SleepDuration ?? 0)
+                    .Field("sleepRestlessnessIndex", (int)(input.SleepRestlessnessIndex ?? 0))
+                    .Field("stepsGoalCompletion", (int)(input.StepsGoalCompletion ?? 0))
+                    .Field("oxygenDesaturationEvents", input.OxygenDesaturationEvents ?? 0)
+                    .Field("collectedDateTime", input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o"))    
+                    .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+
+                await writeApi.WritePointAsync(point,_bucket,_org);
+            
+
+
+            return $"Saved Wearable data.";
+        }
+
+        public async Task<string> IngestWearableObservationsEHRSystemAsync(WearableVitalsInput input)
         {
             var token = await GetAccessTokenAsync();
             var client = _httpClientFactory.CreateClient();
@@ -1644,6 +1711,154 @@ namespace VirtualHealthAPI
             await FhirDeleteAsync("Observation", observationId);
         }
 
+        public async Task<Dictionary<string, string>> GetPredictionUsingAIAsync(string patientId)
+        {
+          
+            var result = await MapObservationSummaryToHealthMetricsInputAsync(patientId);
+            var jsonResult = JsonSerializer.Serialize(result);
+            // can you assign the observation summary result to the HealthMetricsInput .
+            //call python API local url 
+            var client = _httpClientFactory.CreateClient();
+            //transform the output of medplum observation into the required input payload to call teh predeiction api. 
+            var content = new StringContent(jsonResult, Encoding.UTF8, "application/json");
+            var response = await client.PostAsync("http://54.84.47.62:8000/predict_combined", content);
+            //transform the prediction output data into response dictionary to send back to UI
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new Exception("Error calling prediction API");
+            }
+
+            var predictionContent = await response.Content.ReadAsStringAsync();
+
+            var predictionResults = JsonSerializer.Deserialize<Dictionary<string, double>>(predictionContent);
+
+            if (predictionResults == null)
+            {
+                throw new Exception("Error deserializing prediction results");
+            }
+            var resultWithRiskStatus = new Dictionary<string, string>();
+
+            foreach (var kvp in predictionResults)
+            {
+                string riskLevel = kvp.Value switch
+                {
+                    <= 0.25 => "Low Risk (Easy)",
+                    <= 0.50 => "Moderate Risk",
+                    <= 0.75 => "High Risk",
+                    _ => "Very High Risk (Danger)"
+                };
+
+                resultWithRiskStatus[kvp.Key] = $"{kvp.Value:F2} - {riskLevel}";
+            }
+
+            return resultWithRiskStatus;
+        }
+
+
+        private async Task<HealthMetricsInput> MapObservationSummaryToHealthMetricsInputAsync(string patientId)
+        {
+            var observationSummaries = await GetPatientObservationsAsync(patientId);
+
+            var healthMetricsInput = new HealthMetricsInput();
+
+            foreach (var observation in observationSummaries)
+            {
+                switch (observation.CodeValue)
+                {
+                    case "93832-4": // Sleep Duration
+                        healthMetricsInput.SleepDuration = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "80394-6": // Heart Rate Variability
+                        healthMetricsInput.HeartRateVariability = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "8867-4": // Heart Rate
+                        healthMetricsInput.Hrv = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "8480-6": // Blood Pressure
+                        healthMetricsInput.SystolicBp = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "8462-4": // Blood Pressure
+                        healthMetricsInput.DiastolicBp = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "59408-5": // SpO2
+                        healthMetricsInput.Spo2 = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "8310-5": // Temperature
+                        healthMetricsInput.BodyTemp = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "41981-2": // CaloriesBurned
+                        healthMetricsInput.CaloriesBurned = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "41950-7": // Steps
+                        healthMetricsInput.Steps = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "9279-1": // RespiratoryRate
+                        healthMetricsInput.RespiratoryRate = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    //lab results
+                    case "2339-0": // Blood Glucose
+                        healthMetricsInput.FastingGlucose = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2093-3": // cholesterol
+                        healthMetricsInput.Cholesterol = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "4548-4": // hba1c
+                        healthMetricsInput.Hba1c = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2085-9": // hdl
+                        healthMetricsInput.Hdl = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2089-1": // ldl
+                        healthMetricsInput.Ldl = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2571-8": // triglycerides
+                        healthMetricsInput.Triglycerides = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "1988-5": // vitamin_d
+                        healthMetricsInput.VitaminD = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2132-9": // vitamin_b12
+                        healthMetricsInput.VitaminB12 = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "2498-4": // iron
+                        healthMetricsInput.Iron = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "718-7": // hemoglobin
+                        healthMetricsInput.Hemoglobin = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "789-8": // rbc_count
+                        healthMetricsInput.RbcCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "6690-2": // wbc_count
+                        healthMetricsInput.WbcCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        break;
+                    case "777-3": // platelet_count
+                        healthMetricsInput.PlateletCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        break;
+                    case "3016-3": // tsh
+                        healthMetricsInput.Tsh = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "3053-6": // t3
+                        healthMetricsInput.T3 = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "3024-7": // t4
+                        healthMetricsInput.T4 = Convert.ToDouble(observation.Value.Split(" ")[0]);
+                        break;
+                    case "FamilyHistory": // FamilyHistory
+                        healthMetricsInput.FamilyHistory = Convert.ToInt32(1);
+                        break;
+                    case "Smoking": // Smoking
+                        healthMetricsInput.Smoking = Convert.ToInt32(1);
+                        break;
+                    case "Alchohal": // Smoking
+                        healthMetricsInput.Alchohal = Convert.ToInt32(1);
+                        break;
+                }
+            }
+
+            return healthMetricsInput;
+        }
+
         public async Task<List<ObservationSummary>> GetPatientObservationsAsync(string patientId, ObservationFilterType filterType = ObservationFilterType.All)
         {
             var token = await GetAccessTokenAsync();
@@ -1651,12 +1866,6 @@ namespace VirtualHealthAPI
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
-
-            //var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Observation?subject=Patient/{patientId}&_sort=-date&_count=100");
-            //response.EnsureSuccessStatusCode();
-
-            //var content = await response.Content.ReadAsStringAsync();
-            //var jsonDoc = JsonDocument.Parse(content);
 
             var rawObservations = new List<ObservationSummary>();
             var rootElement = await FhirGetAsync("Observation", $"subject=Patient/{patientId}&_sort=-date&_count=100");
@@ -1668,47 +1877,6 @@ namespace VirtualHealthAPI
             {
                 var resource = entry.GetProperty("resource");
                 var observable = ParseObservation(resource, string.Empty, patientId);
-
-                //var id = resource.GetProperty("id").GetString();
-
-                //var codingArray = resource.GetProperty("code").GetProperty("coding");
-
-                //var firstCoding = codingArray[0];
-                //var codeDisplay = firstCoding.GetProperty("display").GetString();
-                //var codeSystem = firstCoding.GetProperty("system").GetString();
-                //var codeValue = firstCoding.GetProperty("code").GetString();
-
-                //var effectiveDateTimeStr = resource.TryGetProperty("effectiveDateTime", out var effTime) ? effTime.GetString() : null;
-                //DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
-
-                //string value = "";
-                //if (resource.TryGetProperty("valueQuantity", out var valueQuantity))
-                //    value = $"{valueQuantity.GetProperty("value").GetDouble()} {valueQuantity.GetProperty("unit").GetString()}";
-                //else if (resource.TryGetProperty("valueString", out var valueString))
-                //    value = valueString.GetString() ?? "";
-                //else if (resource.TryGetProperty("valueInteger", out var valueInt))
-                //    value = valueInt.GetInt32().ToString();
-
-                //string categories = resource.TryGetProperty("category", out var categoryArray) && categoryArray.ValueKind == JsonValueKind.Array
-                //    ? string.Join(", ", categoryArray.EnumerateArray().Select(c => c.GetProperty("coding")[0].GetProperty("code").GetString()))
-                //    : "";
-
-                //string device = string.Empty;
-                //string performer = string.Empty;
-
-                //if (resource.TryGetProperty("device", out var deviceObj) && deviceObj.ValueKind == JsonValueKind.Object)
-                //{
-                //    device = deviceObj.TryGetProperty("reference", out var refProp) ? refProp.GetString() ?? "" : "";
-                //}
-
-                //if (resource.TryGetProperty("performer", out var performerArray) && performerArray.ValueKind == JsonValueKind.Array)
-                //{
-                //    var firstPerformer = performerArray.EnumerateArray().FirstOrDefault();
-                //    performer = firstPerformer.ValueKind == JsonValueKind.Object &&
-                //                firstPerformer.TryGetProperty("reference", out var performerRef)
-                //        ? performerRef.GetString() ?? ""
-                //        : "";
-                //}
 
                 // 🔥 Apply filters
                 bool include = filterType switch
@@ -1862,6 +2030,15 @@ namespace VirtualHealthAPI
                             Timestamp = timestamp,
                             Type = "Temperature",
                             Value = (double)temperature.GetProperty("value").GetDecimal()
+                        });
+                    }
+                    else if (code == "59267-0" && resource.TryGetProperty("valueQuantity", out var caloriesBurned)) // CaloriesBurned
+                    {
+                        vitals.Add(new VitalTrendResult
+                        {
+                            Timestamp = timestamp,
+                            Type = "CaloriesBurned",
+                            Value = (double)caloriesBurned.GetProperty("value").GetDecimal()
                         });
                     }
                     else if (code == "41950-7" && resource.TryGetProperty("valueQuantity", out var steps)) // Steps
@@ -2043,6 +2220,31 @@ namespace VirtualHealthAPI
             // WBC
             if (input.Wbc.HasValue)
                 AddLabObservation("6690-2", "Leukocytes [#/volume] in Blood by Automated count", input.Wbc.Value, "10^3/uL");
+
+            // RBC
+            if (input.Rbc.HasValue)
+                AddLabObservation("789-8", "RBC [#/volume] in Blood", input.Rbc.Value, "10^3/ul");
+
+            if (input.VitaminD.HasValue)
+                AddLabObservation("1988-5", "Vitamin D", input.VitaminD.Value, "ng/mL");         // Vitamin D
+
+            if (input.VitaminB12.HasValue)
+                AddLabObservation("2132-9", "Vitamin B12", input.VitaminB12.Value, "pg/mL");        // Vitamin B12
+
+            if (input.VitaminB12.HasValue)
+                AddLabObservation("20570-8", "Iron", input.VitaminB12.Value, "µg/dL");               // Iron
+
+            if (input.PlateletCount.HasValue)
+                AddLabObservation("26515-7", "Platelet Count", input.PlateletCount.Value, "/uL");     // Platelet Count
+
+            if (input.TSH.HasValue)
+                AddLabObservation("3016-3", "TSH", input.TSH.Value, "uIU/mL");            // Thyroid Stimulating Hormone
+
+            if (input.T3.HasValue)
+                AddLabObservation("11579-0", "Triiodothyronine (T3)", input.T3.Value, "ng/mL"); // T3
+
+            if (input.T4.HasValue)
+                AddLabObservation("3024-7", "Thyroxine (T4)", input.T4.Value, "ug/dL");     // T4
 
             foreach (var obs in observations)
             {
@@ -2373,14 +2575,14 @@ namespace VirtualHealthAPI
             client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
             var categories = new List<string>
-    {
-        "vital-signs",
-        "social-history",
-        "activity",
-        "survey",
-        "lifestyle",
-        "exam" // custom for physical exams
-    };
+            {
+                 "vital-signs",
+                 "social-history",
+                 "activity",
+                 "survey",
+                 "lifestyle",
+                 "exam" // custom for physical exams
+            };
 
             var result = new Dictionary<string, List<ObservationSummary>>();
 

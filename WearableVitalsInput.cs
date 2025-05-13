@@ -3,7 +3,6 @@
     public class WearableVitalsInput
     {
         public string PatientId { get; set; } = default!;
-
         public string DeviceId { get; set; } = default!;
         public double? HeartRate { get; set; }
         public double? Systolic { get; set; }
@@ -15,11 +14,10 @@
         public double? BloodGlucose { get; set; }
         public double? CaloriesBurned { get; set; }
         public double? HeartRateVariability { get; set; }
-        public double? Vo2Max { get; set; }
+        public double? Vo2Max { get; set; }//  40590-2
         public double? SkinTemperature { get; set; }
         public double? SleepDuration { get; set; }
         public double? SleepRestlessnessIndex { get; set; }
-      
         public double? StepsGoalCompletion { get; set; }
         public int? OxygenDesaturationEvents { get; set; }
         public DateTime? CollectedDateTime { get; set; }
