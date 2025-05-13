@@ -32,6 +32,8 @@ namespace VirtualHealthAPI
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
+            _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
+            _httpClient = httpClientFactory.CreateClient();
 
             //_influxUrl = config["Influx:Url"];
             //_token = config["Influx:Token"].ToCharArray();
