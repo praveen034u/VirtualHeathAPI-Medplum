@@ -2,7 +2,7 @@
 
 public class PatientProfileInput
 {
-    public string PatientId { get; set; } =  string.Empty;
+    public string PatientId { get; set; } = string.Empty;
     public string PatientName { get; set; } = string.Empty;
     public string FirstName { get; set; } = default!;
     public string LastName { get; set; } = string.Empty;
@@ -11,7 +11,6 @@ public class PatientProfileInput
 
     public string Email { get; set; } = string.Empty; // optional 
     public string PhoneNumber { get; set; } = string.Empty;
-
 
     public List<ConditionInput> PastConditions { get; set; } = new();
     public PractitionerInput Pcp { get; set; } = new();
@@ -27,16 +26,29 @@ public class PatientProfileInput
     // Mental Health (Category = survey or exam PHQ9)
     public List<MentalHealthSurveyInput> MentalHealthAssessments { get; set; } = new();
 
-    public PatientAddressInput PatientAddress  { get; set; }  = new PatientAddressInput();
+    public PatientAddressInput PatientAddress { get; set; } = new PatientAddressInput();
     public string? SmokingStatus { get; set; }
     public string? AlcoholUse { get; set; }
 
     public string? ExerciseFrequency { get; set; }
     public string? DietHabits { get; set; }
+
+    public string InsuranceProvider { get; set; } = string.Empty;
+    public string PolicyNumber { get; set; } = string.Empty;
+
+    public bool ConsentTreatment { get; set; } = false;
+    public bool ConsentPrivacy { get; set; } = false;
+    public bool ConsentBilling { get; set; } = false;
+
+    public List<VitalSignsInput> VitalSigns { get; set; } = new();
+
+    public List<SocialHistoryInput> SocialHistories { get; set; } = new();
+
+    public List<LifestyleInput> LifestyleHistories { get; set; } = new();
 }
 
-public class PatientAddressInput 
-    {
+public class PatientAddressInput
+{
     public string AddressLine1 { get; set; } = string.Empty;
     public string Street { get; set; } = string.Empty;
     public string City { get; set; } = string.Empty;
@@ -44,20 +56,25 @@ public class PatientAddressInput
     public string ZipCode { get; set; } = string.Empty;
     public string Country { get; set; } = string.Empty;
 }
-//public class SocialHistoryInput
-//{
-//    public string BehaviorCode { get; set; } // LOINC code for Smoking Status
-//    public string BehaviorName { get; set; }
-//    public string StatusCode { get; set; }     // SNOMED code for Former smoker
-//    public string StatusDisplay { get; set; }
-//}
 
-//public class LifestyleInput
-//{
-//    public string LifestyleCode { get; set; }    // LOINC/SNOMED Code
-//    public string LifestyleName { get; set; }    // Exercise Frequency, Diet Habit
-//    public string Detail { get; set; }            // e.g., Exercises 3 times/week
-//}
+public class SocialHistoryInput
+{
+    public string Id { get; set; } = string.Empty;
+    public string BehaviorCode { get; set; }  // SNOMED/LOINC code (e.g., Smoking, Alcohol Use)
+    public string BehaviorName { get; set; }
+    public string? StatusCode { get; set; }    // Coded value (e.g., "Current Smoker")
+    public string? StatusDisplay { get; set; }
+    public int? StatusValue { get; set; }
+}
+public class LifestyleInput
+{
+    public string Id { get; set; } = string.Empty;
+    public string LifestyleCode { get; set; }  // SNOMED/LOINC code (e.g., Smoking, Alcohol Use)
+    public string LifestyleName { get; set; }
+    public string? StatusCode { get; set; }    // Coded value (e.g., "Current Smoker")
+    public string? StatusDisplay { get; set; }
+    public int? StatusValue { get; set; }
+}
 
 public class ImmunizationInput
 {
@@ -79,7 +96,7 @@ public class ImmunizationInput
     /// <summary>
     /// Immunization status code: completed, entered-in-error, or not-done.
     /// </summary>
-    public ImmunizationStatusCodes immunizationStatusCodes= ImmunizationStatusCodes.NotDone;
+    public ImmunizationStatusCodes immunizationStatusCodes = ImmunizationStatusCodes.NotDone;
 }
 
 public enum ImmunizationStatusCodes
@@ -91,6 +108,7 @@ public enum ImmunizationStatusCodes
 
 public class ConditionInput
 {
+    public string Id { get; set; } = string.Empty;
     public string Code { get; set; } = string.Empty;
     public string Display { get; set; } = string.Empty;
 }
@@ -122,9 +140,11 @@ public class ObservationResult
 
 public class VitalSignsInput
 {
-    public string Type { get; set; } = string.Empty;
-    public double Value { get; set; }
-    public string Unit { get; set; } = string.Empty;
+    public string Id { get; set; } = string.Empty;
+    public string Code { get; set; } = default!;
+    public string Display { get; set; } = default!;
+    public decimal? Value { get; set; }
+    public string Unit { get; set; } = default!;
     public DateTime Timestamp { get; set; }
 }
 
@@ -147,12 +167,15 @@ public class PatientLabResultsOutput
 
 public class ObservationSummary
 {
+    public string Id { get; set; } = string.Empty;
     public string CodeDisplay { get; set; } = string.Empty;  // Example: Heart rate
     public string CodeSystem { get; set; } = string.Empty;   // Example: http://loinc.org
     public string CodeValue { get; set; } = string.Empty;    // Example: 8867-4
     public string Categories { get; set; } = string.Empty;   // vital-signs, social-history etc.
     public string Value { get; set; } = string.Empty;         // 78 beats/min, 120 mmHg etc.
-
+    public decimal? decValue { get; set; }         // 78, 120.55.
+    public string? unit {  get; set; }
+    public string? StatusCode { get; set; }
     public string CapturedBy { get; set; } = string.Empty;
     public string EffectiveDateTime { get; set; } = string.Empty;  // 2025-04-27T10:00:00Z
 }
@@ -175,6 +198,14 @@ public class LabResultsInput
     public double? Triglycerides { get; set; }
     public double? Hemoglobin { get; set; }
     public double? Wbc { get; set; }
+    public double? Rbc { get; set; }
+    public double? PlateletCount { get; set; }
+    public double? VitaminD { get; set; }
+    public double? VitaminB12 { get; set; }
+    public double? Iron { get; set; }
+    public double? T3 { get; set; }
+    public double? T4 { get; set; }
+    public double? TSH { get; set; }
     public DateTime? CollectedDateTime { get; set; }  // Optional timestamp
 }
 
