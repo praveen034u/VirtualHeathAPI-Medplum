@@ -22,6 +22,11 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<VirtualHealthAPI.MedplumService>();
 
+builder.Services.AddScoped(sp => new HttpClient
+{
+    BaseAddress = new Uri("http://localhost:8000")
+});
+
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 
 // Pull these four settings from appsettings.json under “Influx”
@@ -40,15 +45,8 @@ builder.Services.AddSingleton(_ => new InfluxDBClient(influxOptions));
 
 // ── SWAGGER / OPENAPI ──────────────────────────────────────────────────────────
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new OpenApiInfo
-    {
-        Title = "VirtualHealth API",
-        Version = "v1",
-        Description = "All existing controllers + Vitals minimal endpoint"
-    });
-});
+builder.Services.AddSwaggerGen();
+
 
 // ── CORS ────────────────────────────────────────────────────────────────────────
 builder.Services.AddCors(options =>
@@ -69,15 +67,11 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // ── MIDDLEWARE PIPELINE ─────────────────────────────────────────────────────────
-
+// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "VirtualHealth API v1");
-        c.RoutePrefix = string.Empty;     // Serve Swagger UI at root
-    });
+    app.UseSwaggerUI();
 }
 
 app.UseCors();               // enable CORS everywhere

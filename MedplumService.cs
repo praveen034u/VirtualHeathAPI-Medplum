@@ -1723,7 +1723,7 @@ namespace VirtualHealthAPI
             var client = _httpClientFactory.CreateClient();
             //transform the output of medplum observation into the required input payload to call teh predeiction api. 
             var content = new StringContent(jsonResult, Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("http://54.84.47.62:8000/predict_combined", content);
+            var response = await client.PostAsync("https://predictive-api-368018650904.us-central1.run.app/predict_combined", content);
             //transform the prediction output data into response dictionary to send back to UI
             if (!response.IsSuccessStatusCode)
             {
