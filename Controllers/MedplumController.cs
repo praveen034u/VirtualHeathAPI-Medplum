@@ -19,6 +19,20 @@ public class MedplumController : ControllerBase
         return Ok(new { message = result });
     }
 
+    [HttpPost("create-patient-profile")]
+    public async Task<IActionResult> CreateProfile([FromBody] PatientProfileInput input)
+    {
+        var result = await _medplum.UpsertPatientProfileAsync(input);
+        return Ok(new { message = result });
+    }
+
+    [HttpPost("update-patient-profile")]
+    public async Task<IActionResult> UpdateProfile([FromBody] PatientProfileInput input)
+    {
+        var result = await _medplum.UpsertPatientProfileAsync(input);
+        return Ok(new { message = result });
+    }
+
     [HttpPost("ingest-wearable-observations-hourly-ehr")]
     public async Task<IActionResult> IngestVitalsHourly([FromBody] WearableVitalsInput input)
     {
