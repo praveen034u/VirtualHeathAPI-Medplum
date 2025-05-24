@@ -3,9 +3,9 @@
 # ==== CONFIGURATION ====
 GCP_PROJECT_ID="dark-bit-459802-t7"
 REGION="us-east4"
-GCP_REPO="wrapper-ehs-api-repo"
-IMAGE_NAME="wrapper-ehs-api"
-SERVICE_NAME="ehs-api-service"
+GCP_REPO="virtual-health-api-repo"
+IMAGE_NAME="virtual-health-api"
+SERVICE_NAME="virtual-health-api-service"
 GITHUB_REPO="praveen034u/VirtualHeathAPI-Medplum"  # Format: username/repo
 
 
