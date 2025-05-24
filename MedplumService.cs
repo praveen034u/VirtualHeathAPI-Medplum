@@ -50,7 +50,9 @@ namespace VirtualHealthAPI
             var tokenUrl = _config["Medplum:TokenUrl"];
             var clientId = _config["Medplum:ClientId"];
             var clientSecret = _config["Medplum:ClientSecret"];
-
+            HttpResponseMessage response= null;
+            try
+            { 
             var formData = new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
@@ -59,11 +61,22 @@ namespace VirtualHealthAPI
                 ["scope"] = "system/*.*"
             };
             Console.WriteLine($"Requesting token from {tokenUrl} with client ID {clientId} and clientSecret {clientSecret}");
-            var response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            var token = JsonDocument.Parse(json).RootElement.GetProperty("access_token").GetString();
-            return token!;
+            response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
+            var responseBody = await response.Content.ReadAsStringAsync();
+               if (!response.IsSuccessStatusCode)
+               {
+                 Console.WriteLine($"Medplum token error {response.StatusCode}: {responseBody}");
+                 throw new ApplicationException("Medplum token request failed.");
+               }
+
+                var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody);
+                return tokenResponse["access_token"].ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception in GetAccessTokenAsync: " + ex.Message);
+                throw;
+            }
         }
 
         public async Task<string> IngestWearableObservationsDataStoreAsync(WearableVitalsInput input)
