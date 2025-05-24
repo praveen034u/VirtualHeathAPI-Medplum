@@ -17,7 +17,7 @@ gcloud config set project $GCP_PROJECT_ID
 echo "Creating service account..."
 gcloud iam service-accounts create github-actions-deployer \
   --display-name "GitHub Actions Deployer" \
-  --project=$GCP_PROJECT_ID  # Explicitly specify the project
+  --project=$GCP_PROJECT_ID  # Explicitly specify the project.
 
 # Add a delay here
 echo "Waiting for service account to be created..."
