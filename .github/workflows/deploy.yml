@@ -47,4 +47,4 @@ jobs:
           --region ${{ secrets.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --set-env-vars "Medplum__FhirUrl=https://api.medplum.com/fhir/R4,Medplum__TokenUrl=https://api.medplum.com/oauth2/token,Medplum__ClientId=01966a67-249f-706f-885c-517fdcf26016,Medplum__ClientSecret=3b619d157ed7be1cb373fd591c55aee2331e9bb0cef1b0008ab1de5ae64f1942,Influx__Org=${{ secrets.INFLUX_ORG }},Influx__Bucket=${{ secrets.INFLUX_BUCKET }}"
+          --set-env-vars "Medplum__FhirUrl=${{ secrets.MEDPLUM_FHIR_URL }},Medplum__ClientId=${{ secrets.MEDPLUM_CLIENTID }},Medplum__ClientSecret=${{ secrets.MEDPLUM_CLIENT_SECRET }},Medplum__TokenUrl=https://api.medplum.com/oauth2/token,Influx__Org=${{ secrets.INFLUX_ORG }},Influx__Bucket=${{ secrets.INFLUX_BUCKET }}"
