@@ -47,4 +47,3 @@ jobs:
           --region ${{ secrets.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --set-env-vars VERTEX_AI_ENDPOINT=${{ secrets.VERTEX_AI_ENDPOINT }}
