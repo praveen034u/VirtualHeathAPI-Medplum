@@ -47,7 +47,7 @@ namespace VirtualHealthAPI
         private async Task<string> GetAccessTokenAsync()
         {
             var client = _httpClientFactory.CreateClient();
-            var tokenUrl = _config["Medplum:TokenUrl"];
+            var tokenUrl = _config["Medplum:TokenUrl"] ?? "https://api.medplum.com/oauth2/token";
             var clientId = _config["Medplum:ClientId"];
             var clientSecret = _config["Medplum:ClientSecret"];
             HttpResponseMessage response= null;
