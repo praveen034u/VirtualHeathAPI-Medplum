@@ -1,9 +1,8 @@
-name: Deploy to Cloud Run
+﻿name: Deploy to Cloud Run
 
 on:
   push:
-    branches:
-      - main  # Change if your default branch is 'master'
+    branches: [main]
 
 jobs:
   build-and-deploy:
@@ -48,4 +47,4 @@ jobs:
           --region ${{ secrets.REGION }} \
           --platform managed \
           --allow-unauthenticated \
-          --set-env-vars VERTEX_AI_ENDPOINT=${{ secrets.VERTEX_AI_ENDPOINT }}
+
