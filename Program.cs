@@ -27,12 +27,15 @@ builder.Services.AddScoped(sp => new HttpClient
     BaseAddress = new Uri("http://localhost:8000")
 });
 
-//// Listen on PORT from Cloud Run environment
-//builder.WebHost.ConfigureKestrel(serverOptions =>
-//{
-//    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-//    serverOptions.ListenAnyIP(Int32.Parse(port));
-//});
+if (!builder.Environment.IsDevelopment())
+{
+    // Listen on PORT from Cloud Run environment
+    builder.WebHost.ConfigureKestrel(serverOptions =>
+    {
+        var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+        serverOptions.ListenAnyIP(Int32.Parse(port));
+    });
+}
 
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 
