@@ -2,7 +2,7 @@
 
 # ==== CONFIGURATION ====
 GCP_PROJECT_ID="dark-bit-459802-t7"
-REGION="us-east4"
+REGION="us-central1"
 GCP_REPO="virtual-health-api-repo"
 IMAGE_NAME="virtual-health-api"
 SERVICE_NAME="virtual-health-api-service"
@@ -57,7 +57,6 @@ gh secret set REGION --body "$REGION"
 gh secret set GCP_REPO --body "$GCP_REPO"
 gh secret set IMAGE_NAME --body "$IMAGE_NAME"
 gh secret set SERVICE_NAME --body "$SERVICE_NAME"
-gh secret set VERTEX_AI_ENDPOINT --body "$VERTEX_AI_ENDPOINT"
 gh secret set GCP_SA_KEY --body "$GCP_SA_KEY"
 
 # ==== CLEANUP ====
