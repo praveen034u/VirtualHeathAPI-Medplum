@@ -50,9 +50,6 @@ namespace VirtualHealthAPI
             var tokenUrl = _config["Medplum:TokenUrl"] ?? "https://api.medplum.com/oauth2/token";
             var clientId = _config["Medplum:ClientId"];
             var clientSecret = _config["Medplum:ClientSecret"];
-            Console.WriteLine("Token URL: " + tokenUrl);
-            Console.WriteLine("Client ID: " + clientId);
-            Console.WriteLine("Client Secret: " + (string.IsNullOrEmpty(clientSecret) ? "MISSING" : "SET"));
             HttpResponseMessage response= null;
             try
             { 
