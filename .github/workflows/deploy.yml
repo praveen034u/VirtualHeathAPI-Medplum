@@ -32,7 +32,7 @@ jobs:
     # 🛠️ Build Docker image
     - name: Build Docker image
       run: |
-        docker build -t ${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO }}/${{ secrets.IMAGE_NAME }}:${{ github.sha }} .
+        docker build -t ${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO }}/${{ secrets.IMAGE_NAME }} .
 
     # 🚀 Push Docker image to Artifact Registry
     - name: Push Docker image
