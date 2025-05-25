@@ -14,7 +14,7 @@ RUN dotnet restore "./VirtualHealthAPI.csproj"
 COPY . .
 RUN dotnet build "./VirtualHealthAPI.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
-ENV ASPNETCORE_URLS=http://*:8080
+ENV ASPNETCORE_URLS=http://+:8080
 
 # This stage is used to publish the service project to be copied to the final stage
 FROM build AS publish
