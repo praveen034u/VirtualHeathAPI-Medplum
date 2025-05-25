@@ -6,7 +6,7 @@ on:
 
 env:
   PROJECT_ID: your-gcp-project-id
-  REGION: us-central1
+  REGION: us-east4
   SERVICE_NAME: myapi
   REPO_NAME: my-repo
 
