@@ -34,7 +34,7 @@ namespace VirtualHealthAPI
             _config = config;
             _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
             _httpClient = httpClientFactory.CreateClient();
-
+            Console.WriteLine($"_apiBaseUrl fhir url {_apiBaseUrl}");
             //_influxUrl = config["Influx:Url"];
             //_token = config["Influx:Token"].ToCharArray();
             _org = config["Influx:Org"]!;
@@ -58,7 +58,7 @@ namespace VirtualHealthAPI
                 ["client_secret"] = clientSecret,
                 ["scope"] = "system/*.*"
             };
-
+            Console.WriteLine($"Requesting token from {tokenUrl} with client ID {clientId} and clientSecret {clientSecret}");
             var response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
