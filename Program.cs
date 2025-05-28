@@ -61,9 +61,8 @@ builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy => policy
         .WithOrigins(
-            "https://localhost:5002",  // UI (Blazor) origin(s)
-            "https://localhost:5003",
-            "http://localhost:5003",
+            "https://myapp.example:7236",  // UI (Blazor) origin(s)
+            "https://virtualhealth.ai4magic.com",
             "https://localhost:7236"
         )
         .AllowAnyHeader()
