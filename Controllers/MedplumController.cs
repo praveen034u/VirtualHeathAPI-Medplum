@@ -78,6 +78,12 @@ public class MedplumController : ControllerBase
     public async Task<IActionResult> GetFullProfile(string emailId)
     {
         var result = await _medplum.GetPatientFullProfileByEmailAsync(emailId);
+
+        if (result == null)
+        {
+            return NotFound();
+        }
+
         return Ok(result);
     }
 

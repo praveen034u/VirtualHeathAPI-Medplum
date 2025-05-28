@@ -412,7 +412,7 @@ namespace VirtualHealthAPI
 
             var searchJson = await FhirGetAsync("Patient", $"telecom=email%7C{Uri.EscapeDataString(email)}");
             if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
-                throw new Exception($"No patient found with email {email}");
+                return null;
 
             var patientJson = entries[0].GetProperty("resource");
             var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
