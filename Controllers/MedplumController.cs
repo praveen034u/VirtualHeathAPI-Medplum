@@ -40,6 +40,12 @@ public class MedplumController : ControllerBase
         return Ok(new { message = result });
     }
 
+    [HttpGet("status")]
+    public IActionResult GetStatus()
+    {
+        return Ok("API is up and running!");
+    }
+
     [HttpGet("current-observations/{patientId}")]
     public async Task<IActionResult> GetCurrentVitals(string patientId)
     {
@@ -72,6 +78,12 @@ public class MedplumController : ControllerBase
     public async Task<IActionResult> GetFullProfile(string emailId)
     {
         var result = await _medplum.GetPatientFullProfileByEmailAsync(emailId);
+
+        if (result == null)
+        {
+            return NotFound();
+        }
+
         return Ok(result);
     }
 

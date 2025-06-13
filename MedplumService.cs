@@ -34,7 +34,7 @@ namespace VirtualHealthAPI
             _config = config;
             _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
             _httpClient = httpClientFactory.CreateClient();
-
+            Console.WriteLine($"_apiBaseUrl fhir url {_apiBaseUrl}");
             //_influxUrl = config["Influx:Url"];
             //_token = config["Influx:Token"].ToCharArray();
             _org = config["Influx:Org"]!;
@@ -47,10 +47,15 @@ namespace VirtualHealthAPI
         private async Task<string> GetAccessTokenAsync()
         {
             var client = _httpClientFactory.CreateClient();
-            var tokenUrl = _config["Medplum:TokenUrl"];
+            var tokenUrl = _config["Medplum:TokenUrl"] ?? "https://api.medplum.com/oauth2/token";
             var clientId = _config["Medplum:ClientId"];
             var clientSecret = _config["Medplum:ClientSecret"];
-
+            Console.WriteLine("Token URL: " + tokenUrl);
+            Console.WriteLine("Client ID: " + clientId);
+            Console.WriteLine("Client Secret: " + (string.IsNullOrEmpty(clientSecret) ? "MISSING" : "SET"));
+            HttpResponseMessage response= null;
+            try
+            { 
             var formData = new Dictionary<string, string>
             {
                 ["grant_type"] = "client_credentials",
@@ -58,12 +63,23 @@ namespace VirtualHealthAPI
                 ["client_secret"] = clientSecret,
                 ["scope"] = "system/*.*"
             };
+            Console.WriteLine($"Requesting token from {tokenUrl} with client ID {clientId} and clientSecret {clientSecret}");
+            response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
+            var responseBody = await response.Content.ReadAsStringAsync();
+               if (!response.IsSuccessStatusCode)
+               {
+                 Console.WriteLine($"Medplum token error {response.StatusCode}: {responseBody}");
+                 throw new ApplicationException("Medplum token request failed.");
+               }
 
-            var response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
-            response.EnsureSuccessStatusCode();
-            var json = await response.Content.ReadAsStringAsync();
-            var token = JsonDocument.Parse(json).RootElement.GetProperty("access_token").GetString();
-            return token!;
+                var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody);
+                return tokenResponse["access_token"].ToString();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception in GetAccessTokenAsync: " + ex.Message);
+                throw;
+            }
         }
 
         public async Task<string> IngestWearableObservationsDataStoreAsync(WearableVitalsInput input)
@@ -396,7 +412,7 @@ namespace VirtualHealthAPI
 
             var searchJson = await FhirGetAsync("Patient", $"telecom=email%7C{Uri.EscapeDataString(email)}");
             if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
-                throw new Exception($"No patient found with email {email}");
+                return null;
 
             var patientJson = entries[0].GetProperty("resource");
             var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
@@ -1723,7 +1739,7 @@ namespace VirtualHealthAPI
             var client = _httpClientFactory.CreateClient();
             //transform the output of medplum observation into the required input payload to call teh predeiction api. 
             var content = new StringContent(jsonResult, Encoding.UTF8, "application/json");
-            var response = await client.PostAsync("http://54.84.47.62:8000/predict_combined", content);
+            var response = await client.PostAsync("https://predictive-api-368018650904.us-central1.run.app/predict_combined", content);
             //transform the prediction output data into response dictionary to send back to UI
             if (!response.IsSuccessStatusCode)
             {

@@ -1,47 +1,50 @@
-name: Build and Deploy Virtual Health API to AWS ECS
+﻿name: Deploy to Cloud Run
 
 on:
   push:
-    branches:
-      - feature-praveen  # or whatever branch you want auto deploy on
+    branches: [main]
 
 jobs:
-  deploy:
-    name: Build, Push, and Deploy
+  build-and-deploy:
+    name: Build and Deploy to Google Cloud Run
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+    - name: Checkout source code
+      uses: actions/checkout@v3
 
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
+    # ✅ Proper authentication using google-github-actions/auth
+    - name: Authenticate to Google Cloud
+      uses: google-github-actions/auth@v1
+      with:
+        credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+    # ✅ Setup gcloud CLI with the authenticated credentials
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v1
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Build Docker image
-        run: |
-          docker build -t ${{ secrets.ECR_REPOSITORY_URI }}:latest .
+    # ✅ Authenticate Docker with Artifact Registry
+    - name: Authenticate Docker to Artifact Registry
+      run: gcloud auth configure-docker ${{ secrets.REGION }}-docker.pkg.dev
 
-      - name: Push Docker image to ECR
-        run: |
-          docker push ${{ secrets.ECR_REPOSITORY_URI }}:latest
+    # 🛠️ Build Docker image
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO }}/${{ secrets.IMAGE_NAME }} .
 
-      - name: Render Amazon ECS Task Definition
-        id: render-task-def
-        run: |
-          sed "s|ECR_IMAGE_URI|${{ secrets.ECR_REPOSITORY_URI }}:latest|g" ecs-task-def.json > ecs-task-def-rendered.json
+    # 🚀 Push Docker image to Artifact Registry
+    - name: Push Docker image
+      run: |
+        docker push ${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO }}/${{ secrets.IMAGE_NAME }}
 
-      - name: Deploy Amazon ECS Service
-        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-        with:
-          task-definition: ecs-task-def-rendered.json
-          service: ${{ secrets.ECS_SERVICE_NAME }}
-          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
-          wait-for-service-stability: true
+    # 📦 Deploy to Cloud Run
+    - name: Deploy to Cloud Run
+      run: |
+        gcloud run deploy ${{ secrets.SERVICE_NAME }} \
+          --image ${{ secrets.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.GCP_REPO }}/${{ secrets.IMAGE_NAME }} \
+          --region ${{ secrets.REGION }} \
+          --platform managed \
+          --allow-unauthenticated \
+          --set-env-vars "Medplum__FhirUrl=${{ secrets.MEDPLUM_FHIR_URL }},Medplum__ClientId=${{ secrets.MEDPLUM_CLIENTID }},Medplum__ClientSecret=${{ secrets.MEDPLUM_CLIENT_SECRET }},Medplum__TokenUrl=https://api.medplum.com/oauth2/token,Influx__Org=${{ secrets.INFLUX_ORG }},Influx__Bucket=${{ secrets.INFLUX_BUCKET }}"
