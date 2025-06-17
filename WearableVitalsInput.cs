@@ -37,5 +37,24 @@
         public string? DietHabits { get; set; }
         public DateTime? CollectedDateTime { get; set; }
    }
+        public enum NotificationPreference
+        {
+            Email,
+            SMS,
+            PushNotification,
+            VoiceCall   
+        }
 
+        public class NotificationRequest
+        {
+            public string PatientId { get; set; } = default!;
+            public string Message { get; set; } = default!;
+            public string NotificationType { get; set; } = default!;
+            public string emailId { get; set; } = default!; // Optional, if you want to send email notifications
+            public string PhoneNumber { get; set; } = default!; // Optional, if you want to send SMS notifications
+            public string ProviderId { get; set; } = default!; // Optional, if you want to notify a specific provider
+            public string DeviceId { get; set; } = default!; // Optional, if you want to send push notifications to a specific device
+            public NotificationPreference NotificationPreference { get; set; } = NotificationPreference.SMS; // Default preference
+            public DateTime? NotificationDateTime { get; set; } // Optional, if you want to schedule the notification
+        }
 }

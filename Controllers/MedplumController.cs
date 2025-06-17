@@ -121,4 +121,12 @@ public class MedplumController : ControllerBase
         var result = await _medplum.GetPatientLabResultsAsync(patientId);
         return Ok(result);
     }
+
+    [HttpPost("send-notification")]
+    public async Task<IActionResult> GetLabResults(NotificationRequest notificationRequest)
+    {
+        var result = await _medplum.SendNotification(notificationRequest);
+        return Ok(result);
+    }
+
 }
