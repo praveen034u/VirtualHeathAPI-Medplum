@@ -45,6 +45,8 @@ public class PatientProfileInput
     public List<SocialHistoryInput> SocialHistories { get; set; } = new();
 
     public List<LifestyleInput> LifestyleHistories { get; set; } = new();
+
+    public List<ConsentInput> Consent { get; set; } = new();
 }
 
 public class PatientAddressInput
@@ -217,4 +219,12 @@ public class ImagingResultInput
     public string? LoincCode { get; set; }    // Example: "18748-4" (Chest X-ray Study)
     public string ResultSummary { get; set; } = default!;  // Example: "No signs of pneumonia."
     public DateTime? CollectedDateTime { get; set; }       // Optional
+}
+
+public class ConsentInput
+{
+    public string Id { get; set; } = string.Empty;
+    public string Code { get; set; } = default!;
+    public string Display { get; set; } = default!;
+    public bool IsSelected { get; set; } = false; // For checkbox binding
 }

@@ -36,7 +36,6 @@ namespace VirtualHealthAPI
             _config = config;
             _apiBaseUrl = $"{_config["Medplum:FhirUrl"]}";
             _httpClient = httpClientFactory.CreateClient();
-            Console.WriteLine($"_apiBaseUrl fhir url {_apiBaseUrl}");
             //_influxUrl = config["Influx:Url"];
             //_token = config["Influx:Token"].ToCharArray();
             _org = config["Influx:Org"]!;
@@ -514,6 +513,9 @@ namespace VirtualHealthAPI
                 ParseObservation(patientProfile, observations);
 
             patientProfile.PastConditions = await GetPatientConditionsAsync(patientId);
+
+            patientProfile.Consent = await GetPatientConsentAsync(patientId);
+
             return patientProfile;
         }
 
@@ -985,6 +987,8 @@ namespace VirtualHealthAPI
             // 4. Insert Conditions if exists
             await SyncConditionsAsync(patientId, input.PastConditions);
 
+            await SyncConsentAsync(patientId, input.Consent);
+
             return patientId;
         }
 
@@ -1441,7 +1445,7 @@ namespace VirtualHealthAPI
             {
                 if (!string.IsNullOrEmpty(social.Id))
                 {
-                    await DeleteCondition(social.Id);
+                    await DeleteObservation(social.Id);
                 }
             }
         }
@@ -1601,7 +1605,7 @@ namespace VirtualHealthAPI
             {
                 if (!string.IsNullOrEmpty(life.Id))
                 {
-                    await DeleteCondition(life.Id);
+                    await DeleteObservation(life.Id);
                 }
             }
         }
@@ -1969,6 +1973,43 @@ namespace VirtualHealthAPI
             }
 
             return rawConditions;
+        }
+
+        private async Task<List<ConsentInput>> GetPatientConsentAsync(string patientId)
+        {
+            var rawConsent = new List<ConsentInput>();
+            var rootElement = await FhirGetAsync("Consent", $"patient=Patient/{patientId}");
+
+            if (!rootElement.TryGetProperty("entry", out var entries))
+                return rawConsent; // No Consent found
+
+            foreach (var entry in entries.EnumerateArray())
+            {
+                var resource = entry.GetProperty("resource");
+                var id = resource.GetProperty("id").GetString();
+                var scopeArray = resource.GetProperty("scope").GetProperty("coding");
+
+                var firstCoding = scopeArray[0];
+                var codeDisplay = firstCoding.GetProperty("display").GetString();
+                var codeSystem = firstCoding.GetProperty("system").GetString();
+                var codeValue = firstCoding.GetProperty("code").GetString();
+
+                var policyArray = resource.GetProperty("policyRule").GetProperty("coding");
+                var policycodeValue = policyArray[0].GetProperty("code").GetString();
+
+                var effectiveDateTimeStr = resource.TryGetProperty("dateTime", out var effTime) ? effTime.GetString() : null;
+                DateTime.TryParse(effectiveDateTimeStr, out var effectiveDateTime);
+
+                rawConsent.Add(new ConsentInput
+                {
+                    Id = id ?? string.Empty,
+                    Code = codeValue ?? string.Empty,
+                    Display = codeDisplay ?? "Unknown",
+                    IsSelected = policycodeValue?.ToLower() == "opt-in" ? true : false,
+                });
+            }
+
+            return rawConsent;
         }
 
         public async Task<List<VitalTrendResult>> GetVitalsTrendAsync(string patientId)
@@ -2787,6 +2828,148 @@ namespace VirtualHealthAPI
                 StatusCode = statusCode,
                 EffectiveDateTime = effectiveDateTime ?? DateTime.Now.ToString("o")
             };
+        }
+
+        private async Task SyncConsentAsync(string patientId, List<ConsentInput> current)
+        {
+            if (string.IsNullOrEmpty(patientId))
+                throw new ArgumentException("Patient ID is required for update.");
+
+            var previous = await GetPatientConsentAsync(patientId);
+            // INSERT new conditions
+            var toInsert = current
+                .Where(c => string.IsNullOrEmpty(c.Id))
+                .ToList();
+
+            foreach (var consent in toInsert)
+            {
+                consent.Id = await CreateConsentAsync(patientId, consent);
+            }
+
+            // UPDATE modified (if needed)
+            foreach (var consent in current.Where(c => !string.IsNullOrEmpty(c.Id)))
+            {
+                var original = previous.FirstOrDefault(x => x.Id == consent.Id);
+                if (original != null && (original.IsSelected != consent.IsSelected))
+                {
+                    await UpdateConsentAsync(patientId, consent);
+                }
+            }
+
+            // DELETE unselected
+            var toDelete = previous
+                .Where(existing => current.All(c => c.Id != existing.Id))
+                .ToList();
+
+            foreach (var consent in toDelete)
+            {
+                if (!string.IsNullOrEmpty(consent.Id))
+                {
+                    await DeleteConsentAsync(consent.Id);
+                }
+            }
+        }
+
+        public async Task<string> CreateConsentAsync(string patientId, ConsentInput consent)
+        {
+            var payLoad = new
+            {
+                resourceType = "Consent",
+                status = "active",
+                scope = new
+                {
+                    coding = new[]
+                    {
+                        new { 
+                            system = "http://terminology.hl7.org/CodeSystem/consentscope", 
+                            code = consent.Code,
+                            display= consent.Display
+                        }
+                    }
+                },
+                category = new[]
+                {
+                    new {
+                        coding = new[]
+                        {
+                            new { 
+                                system = "http://terminology.hl7.org/CodeSystem/consentcategorycodes", 
+                                code = consent.Code, 
+                                display = consent.Display
+                            }
+                        }
+                    }
+                },
+                patient = new { reference = $"Patient/{patientId}" },
+                dateTime = DateTime.UtcNow.ToString("o"),
+                policyRule = new
+                {
+                    coding = new[]
+                    {
+                        new { 
+                            system = "http://terminology.hl7.org/CodeSystem/consentpolicy", 
+                            code = consent.IsSelected ? "opt-in" : "opt-out"
+                        }
+                    }
+                }
+            };
+
+            var result = await FhirPostAsync("Consent", payLoad);
+            return result;
+        }
+
+        public async Task<string> UpdateConsentAsync(string patientId, ConsentInput consent)
+        {
+            var payLoad = new
+            {
+                resourceType = "Consent",
+                id = consent.Id,
+                status = "active",
+                scope = new
+                {
+                    coding = new[]
+                    {
+                        new {
+                            system = "http://terminology.hl7.org/CodeSystem/consentscope",
+                            code = consent.Code,
+                            display= consent.Display
+                        }
+                    }
+                },
+                category = new[]
+                {
+                    new {
+                        coding = new[]
+                        {
+                            new {
+                                system = "http://terminology.hl7.org/CodeSystem/consentcategorycodes",
+                                code = consent.Code,
+                                display = consent.Display
+                            }
+                        }
+                    }
+                },
+                patient = new { reference = $"Patient/{patientId}" },
+                dateTime = DateTime.UtcNow.ToString("o"),
+                policyRule = new
+                {
+                    coding = new[]
+                    {
+                        new {
+                            system = "http://terminology.hl7.org/CodeSystem/consentpolicy",
+                            code = consent.IsSelected ? "opt-in" : "opt-out"
+                        }
+                    }
+                }
+            };
+
+            var result = await FhirPutAsync("Consent", payLoad, consent.Id);
+            return result;
+        }
+
+        public async Task DeleteConsentAsync(string consentId)
+        {
+            await FhirDeleteAsync("Consent", consentId);
         }
 
         private async Task<JsonElement> FhirGetAsync(string resourceType, string query)
