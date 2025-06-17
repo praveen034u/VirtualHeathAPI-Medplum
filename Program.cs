@@ -30,11 +30,11 @@ builder.Services.AddScoped(sp => new HttpClient
 
 // Listen on PORT from Cloud Run environment 
 // comment for local development and uncomment for sever
-//builder.WebHost.ConfigureKestrel(serverOptions =>
-//{
-//    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-//    serverOptions.ListenAnyIP(Int32.Parse(port));
-//});
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    serverOptions.ListenAnyIP(Int32.Parse(port));
+});
 
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 
