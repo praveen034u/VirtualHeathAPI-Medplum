@@ -21,19 +21,20 @@ builder.Services.AddControllers();
 // HTTP client & your existing MedPlum service
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<VirtualHealthAPI.MedplumService>();
-
+builder.Services.AddSingleton<TwilioService>();
 builder.Services.AddScoped(sp => new HttpClient
 {
-    BaseAddress = new Uri("http://localhost:8000")
+    BaseAddress = new Uri("http://localhost:8000") 
 });
 
 
-    // Listen on PORT from Cloud Run environment
-    builder.WebHost.ConfigureKestrel(serverOptions =>
-    {
-        var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-        serverOptions.ListenAnyIP(Int32.Parse(port));
-    });
+// Listen on PORT from Cloud Run environment 
+// comment for local development and uncomment for sever
+//builder.WebHost.ConfigureKestrel(serverOptions =>
+//{
+//    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+//    serverOptions.ListenAnyIP(Int32.Parse(port));
+//});
 
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 

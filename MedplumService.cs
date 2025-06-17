@@ -10,6 +10,7 @@ using InfluxDB.Client;
 using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
 using System.Net.Sockets;
+using System.Security.AccessControl;
 
 namespace VirtualHealthAPI
 {
@@ -27,8 +28,9 @@ namespace VirtualHealthAPI
         private readonly string _catVitalSign = "vital-signs";
         private readonly string _influxUrl;
         private readonly char[] _token;
-      
-        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient)
+        private readonly TwilioService _twilioService;
+
+        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient, TwilioService twilioService)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
@@ -42,6 +44,7 @@ namespace VirtualHealthAPI
 
             //_influxClient = InfluxDBClientFactory.Create(_influxUrl, new string(_token));
             _influxClient = influxClient;
+            _twilioService= twilioService;
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -2826,5 +2829,11 @@ namespace VirtualHealthAPI
             response.EnsureSuccessStatusCode();
         }
 
+        public async Task<bool> SendNotification(NotificationRequest notificationRequest)
+        {
+            var result = await _twilioService.SendSmsAsync(notificationRequest.PhoneNumber, notificationRequest.Message);
+            //var response = await _httpClient.DeleteAsync($"{_apiBaseUrl}/{resourceType}/{id}");
+            return result;
+        }
     }
 }
