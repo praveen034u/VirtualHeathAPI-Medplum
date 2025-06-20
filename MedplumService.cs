@@ -399,23 +399,33 @@ namespace VirtualHealthAPI
             return $"Ingested {observations.Count} wearable vitals for Patient/{input.PatientId}.";
         }
 
-        public async Task<PatientProfileInput> GetPatientFullProfileByEmailAsync(string email)
+        public async Task<PatientProfileInput> GetPatientFullProfileByPatientIdAsync(string patientId)
         {
             var token = await GetAccessTokenAsync();
-            //var client = _httpClientFactory.CreateClient();
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
-            // 1. Search Patient by Email
-            //var searchRes = await _httpClient.GetAsync($"{_config["Medplum:FhirUrl"]}/Patient?telecom=email%7C{Uri.EscapeDataString(email)}");
-            //searchRes.EnsureSuccessStatusCode();
-            //var searchJson = JsonDocument.Parse(await searchRes.Content.ReadAsStringAsync()).RootElement;
+            var searchJson = await FhirGetAsync("Patient", $"_id={Uri.EscapeDataString(patientId)}");
+            return await SetPatientprfileData(searchJson);
+        }
+
+        public async Task<PatientProfileInput> GetPatientFullProfileByEmailAsync(string email)
+        {
+            var token = await GetAccessTokenAsync();
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
             var searchJson = await FhirGetAsync("Patient", $"telecom=email%7C{Uri.EscapeDataString(email)}");
+            return await SetPatientprfileData(searchJson);
+        }
+
+        private async Task<PatientProfileInput> SetPatientprfileData(JsonElement searchJson)
+        {
             if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
                 return null;
-
+           
             var patientJson = entries[0].GetProperty("resource");
             var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
 
@@ -518,6 +528,7 @@ namespace VirtualHealthAPI
 
             return patientProfile;
         }
+
 
         public async Task<string> CreatePatientWithPcpAndVitalsAsync(PatientProfileInput input)
         {

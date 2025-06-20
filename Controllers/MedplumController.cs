@@ -87,6 +87,19 @@ public class MedplumController : ControllerBase
         return Ok(result);
     }
 
+    [HttpGet("patient-full-profileByPatientId/{patientId}")]
+    public async Task<IActionResult> GetFullProfileByPatientId(string patientId)
+    {
+        var result = await _medplum.GetPatientFullProfileByPatientIdAsync(patientId);
+
+        if (result == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(result);
+    }
+
     [HttpPost("ingest-general-lab-results-observations")]
     public async Task<IActionResult> IngestGeneralLabResults([FromBody] LabResultsInput input)
     {
