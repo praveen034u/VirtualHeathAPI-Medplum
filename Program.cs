@@ -104,7 +104,7 @@ app.MapGet("/api/vitals/{patientId}", async (
         |> filter(fn: (r) =>
              r._measurement == ""vitals"" and
              r.patientId      == ""{patientId}"" and
-             (r._field == ""heartRate"" or r._field == ""spo2"")
+             (r._field == ""heartRate"" or r._field == ""spo2"" or r._field == ""bloodGlucose"" or r._field == ""respiratoryRate"")
            )
         |> pivot(
              rowKey:     [""_time""],
@@ -122,7 +122,9 @@ app.MapGet("/api/vitals/{patientId}", async (
       {
           time = r.GetTimeInDateTime()?.ToLocalTime(),
           heartRate = r.GetValueByKey("heartRate"),
-          spo2 = r.GetValueByKey("spo2")
+          spo2 = r.GetValueByKey("spo2"),
+          bloodGlucose = r.GetValueByKey("bloodGlucose"),
+          respiratoryRate = r.GetValueByKey("respiratoryRate")
       })
       .ToList();
 
