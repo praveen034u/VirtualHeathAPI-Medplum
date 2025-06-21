@@ -135,7 +135,7 @@ public class MedplumController : ControllerBase
         return Ok(result);
     }
 
-    [HttpGet("alarm-notification")]
+    [HttpGet("alarm-notification/{patientId}")]
     public async Task<IActionResult> GetAlarmNotification(string patientId)
     {
         var result = await _medplum.GetAlarmNotification(patientId);
