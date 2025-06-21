@@ -28,9 +28,9 @@ namespace VirtualHealthAPI
         private readonly string _catVitalSign = "vital-signs";
         private readonly string _influxUrl;
         private readonly char[] _token;
-        private readonly TwilioService _twilioService;
+        private readonly S3AlarmReader _s3alarmReader;
 
-        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient, TwilioService twilioService)
+        public MedplumService(IHttpClientFactory httpClientFactory, IConfiguration config, InfluxDBClient influxClient, S3AlarmReader s3alarmReader)
         {
             _httpClientFactory = httpClientFactory;
             _config = config;
@@ -43,7 +43,7 @@ namespace VirtualHealthAPI
 
             //_influxClient = InfluxDBClientFactory.Create(_influxUrl, new string(_token));
             _influxClient = influxClient;
-            _twilioService= twilioService;
+            _s3alarmReader = s3alarmReader;
         }
 
         private async Task<string> GetAccessTokenAsync()
@@ -3023,11 +3023,18 @@ namespace VirtualHealthAPI
             response.EnsureSuccessStatusCode();
         }
 
-        public async Task<bool> SendNotification(NotificationRequest notificationRequest)
+        public async Task<List<AlarmNotification>> GetAlarmNotification(string patientId)
         {
-            var result = await _twilioService.SendSmsAsync(notificationRequest.PhoneNumber, notificationRequest.Message);
-            //var response = await _httpClient.DeleteAsync($"{_apiBaseUrl}/{resourceType}/{id}");
-            return result;
+            //var result = await _twilioService.SendSmsAsync(notificationRequest.PhoneNumber, notificationRequest.Message);
+
+            // logic to set the s3 location with patientid and current date
+            var dateToken = DateTime.UtcNow.ToString("yyyy/MM/dd");
+            var s3location = $"s3://vh-alarm-notifications/{patientId}/{dateToken}/";
+            //s3://vh-alarm-notifications/sadsd1212/2025/06/21/
+            //s3://vh-alarm-notifications/01978609-4506-72a9-a00e-8083bbf66207/2025/06/21/
+            //read the all the json files from the s3 location and filter the last 10 latest files based on the file named with created timestamp 
+            var alarmNotificationList = await _s3alarmReader.GetAlarmNotification(patientId);
+            return alarmNotificationList;
         }
     }
 }
