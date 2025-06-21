@@ -1,0 +1,29 @@
+{
+  "Prompts": [
+    {
+      "userPrompt": "How is my blood pressure trend?",
+      "primed": "You are a virtual health assistant.\n\nHere is the user's health data:\n- Systolic blood pressure readings over the past 7 days: [{bp-sys-readings}]\n- Diastolic blood pressure readings over the past 7 days: [{bp-dist-readings}]\n- Data collected daily at 8 AM\n- User is {age} years old, {gender}, with {prehypertension-flag} history of prehypertension\n- Currently managing via lifestyle changes (not on medication)\n\nUser Query: How is my blood pressure trend?\n\nPlease analyze the trend and provide personalized feedback in a clinical but easy-to-understand manner.\n\nReturn the answer as clean HTML wrapped in a single <div> tag so it can be rendered directly in a web page. Include <p>, <ul>, <strong>, <h3> etc. to structure the response.",
+      "additional-params": ""
+    },
+    {
+      "userPrompt": "Am I getting enough quality sleep?",
+      "primed": "You are a virtual health assistant.\n\nHere is the user's health data:\n- Sleep duration over the past 7 days (in hours): [{sleep-duration-readings}]\n- Sleep restlessness index over the past 7 days: [{sleep-restlessness-indexes}]\n- Average bedtime: {average-bedtime}\n- Wake-up time: {average-wake-up-time}\n- User is {age} years old, {gender}, with no known sleep disorders\n\nUser Query: Am I getting enough quality sleep?\n\nPlease evaluate the user's sleep trends and provide clinical but easy-to-understand insights.\n\nReturn the answer as clean HTML wrapped in a single <div> tag so it can be rendered directly in a web page. Include <p>, <ul>, <strong>, <h3> etc. to structure the response.",
+      "additional-params": ""
+    },
+    {
+      "userPrompt": "What can I do to reduce stress?",
+      "primed": "You are a virtual health assistant.\n\nHere is the user's health data:\n- Stress indicator from wearable (based on HRV or reported scale) over the past 7 days: [{stress-readings}]\n- Resting heart rate average: {resting-heart-rate} bpm\n- Sleep quality score average: {sleep-score}\n- User is {age} years old, {gender}, reports a {stress-level-description} level of daily stress due to work/lifestyle factors\n\nUser Query: What can I do to reduce stress?\n\nProvide lifestyle, behavioral, and wellness suggestions supported by clinical best practices. Keep the response empathetic and practical.\n\nReturn the answer as clean HTML wrapped in a single <div> tag so it can be rendered directly in a web page. Include <p>, <ul>, <strong>, <h3> etc. to structure the response.",
+      "additional-params": ""
+    },
+    {
+      "userPrompt": "How many steps should I take daily?",
+      "primed": "You are a virtual health assistant.\n\nHere is the user's health data:\n- Average daily steps over the past 7 days: [{steps-readings}]\n- Steps goal completion rate: {steps-goal-completion}%\n- Physical activity level: {activity-level} (e.g., sedentary, moderately active)\n- User is {age} years old, {gender}, with goal to improve general fitness and cardiovascular health\n\nUser Query: How many steps should I take daily?\n\nProvide a personalized step goal recommendation based on current activity level, general health, and age. Include best practices and motivational tips.\n\nReturn the answer as clean HTML wrapped in a single <div> tag so it can be rendered directly in a web page. Include <p>, <ul>, <strong>, <h3> etc. to structure the response.",
+      "additional-params": ""
+    },
+    {
+      "userPrompt": "Should I be concerned about my heart rate?",
+      "primed": "You are a virtual health assistant.\n\nHere is the user's health data:\n- Average resting heart rate over the past 7 days: [{resting-heart-rate-readings}] bpm\n- Maximum heart rate during exercise sessions: [{max-heart-rate-readings}] bpm\n- Heart rate variability (HRV): {hrv-value}\n- User is {age} years old, {gender}, with {cardiac-history-flag} history of cardiovascular issues\n\nUser Query: Should I be concerned about my heart rate?\n\nPlease evaluate the heart rate data in the context of general health and age. Identify any warning signs and recommend if further medical attention is necessary.\n\nReturn the answer as clean HTML wrapped in a single <div> tag so it can be rendered directly in a web page. Include <p>, <ul>, <strong>, <h3> etc. to structure the response.",
+      "additional-params": ""
+    }
+  ]
+}

@@ -7,6 +7,8 @@ using Microsoft.OpenApi.Models;
 using InfluxDB.Client;
 using InfluxDB.Client.Core;
 using VirtualHealthAPI;
+using Amazon.S3;
+using Amazon;
 
 // If your MedPlumService lives in a namespace, adjust this using accordingly:
 // using VirtualHealthAPI.Services;
@@ -22,11 +24,25 @@ builder.Services.AddControllers();
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<VirtualHealthAPI.MedplumService>();
 builder.Services.AddSingleton<TwilioService>();
+builder.Services.AddSingleton<S3AlarmReader>();
+
+
 builder.Services.AddScoped(sp => new HttpClient
 {
     BaseAddress = new Uri("http://localhost:8000") 
 });
 
+builder.Services.Configure<AWSSettings>(builder.Configuration.GetSection("AWS"));
+var awsSettings = builder.Configuration.GetSection("AWS").Get<AWSSettings>();
+var s3Config = new AmazonS3Config
+{
+    RegionEndpoint = RegionEndpoint.GetBySystemName(awsSettings?.Region)
+};
+
+var s3Client = new AmazonS3Client(awsSettings?.AccessKey, awsSettings?.SecretKey, s3Config);
+
+// Register IAmazonS3 instance
+builder.Services.AddSingleton<IAmazonS3>(s3Client);
 
 // Listen on PORT from Cloud Run environment 
 // comment for local development and uncomment for sever
