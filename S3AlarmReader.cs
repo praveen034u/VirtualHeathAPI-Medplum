@@ -8,7 +8,7 @@ namespace VirtualHealthAPI
         public class S3AlarmReader
         {
             private readonly IAmazonS3 _s3Client;
-            private const string BucketName = "vh-alarm-notifications";
+            private const string BucketName = "health-alert-logs";
 
             public S3AlarmReader(IAmazonS3 s3Client)
             {
@@ -27,6 +27,12 @@ namespace VirtualHealthAPI
                 };
 
                 var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
+                if (listResponse.S3Objects == null || !listResponse.S3Objects.Any())
+                {
+                    Console.WriteLine($"No objects found for patient {patientId} on {dateToken}");
+                    return new List<AlarmNotification>();
+                }   
+             
                 var jsonFiles = listResponse.S3Objects
                     .Where(o => o.Key.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     .ToList();
