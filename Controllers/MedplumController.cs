@@ -139,7 +139,7 @@ public class MedplumController : ControllerBase
     public async Task<IActionResult> GetAlarmNotification(string patientId)
     {
         var result = await _medplum.GetAlarmNotification(patientId);
-        return Ok(result);
-    }
+        return Ok(new { message = result });
 
+    }
 }
