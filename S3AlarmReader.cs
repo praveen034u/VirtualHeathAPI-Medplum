@@ -17,10 +17,7 @@ namespace VirtualHealthAPI
         }
 
         public async Task<List<AlarmNotification>> GetAlarmNotification(string patientId)
-        {
-            if (string.IsNullOrWhiteSpace(patientId))
-                patientId = "01978609-4506-72a9-a00e-8083bbf66207"; // fallback for local testing
-
+        { 
             var notifications = new List<AlarmNotification>();
 
             for (int i = 0; i < 2; i++)
