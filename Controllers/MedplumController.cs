@@ -155,8 +155,6 @@ public class MedplumController : ControllerBase
 
         var patientProfileInput = await _medplum.GetPatientFullProfileByPatientIdAsync(request.PatientId);
 
-  
-
         var patientProfile = new PatientProfile
         {
             Age = CalculateAge(patientProfileInput.BirthDate),
@@ -168,24 +166,33 @@ public class MedplumController : ControllerBase
 
         var vitals = await _medplum.GetVitalsTrendAsync(request.PatientId);
 
-        // Group systolic and diastolic BP readings (latest 7 each)
-        var systolicReadings = vitals
-            .Where(v => v.Type == "SystolicBP")
-            .OrderByDescending(v => v.Timestamp)
-            .Take(7)
-            .Select(v => v.Value)
-            .ToList();
+        // Extract various vitals as needed
+        var systolicReadings = GetLatestValues(vitals, "SystolicBP", 7);
+        var diastolicReadings = GetLatestValues(vitals, "DiastolicBP", 7);
+        var sleepDurations = GetLatestValues(vitals, "SleepDuration", 7);
+        var sleepRestlessness = GetLatestValues(vitals, "SleepRestlessness", 7);
+        var stressReadings = GetLatestValues(vitals, "Stress", 7);
+        var restingHRs = GetLatestValues(vitals, "RestingHeartRate", 7);
+        var maxHRs = GetLatestValues(vitals, "MaxHeartRate", 7);
+        var stepsReadings = GetLatestValues(vitals, "Steps", 7);
 
-        var diastolicReadings = vitals
-            .Where(v => v.Type == "DiastolicBP")
-            .OrderByDescending(v => v.Timestamp)
-            .Take(7)
-            .Select(v => v.Value)
-            .ToList();
-
+        // Replace placeholders if they exist
         var finalPrimed = promptTemplate
             .Replace("{bp-sys-readings}", string.Join(", ", systolicReadings))
             .Replace("{bp-dist-readings}", string.Join(", ", diastolicReadings))
+            .Replace("{sleep-duration-readings}", string.Join(", ", sleepDurations))
+            .Replace("{sleep-restlessness-indexes}", string.Join(", ", sleepRestlessness))
+            .Replace("{stress-readings}", string.Join(", ", stressReadings))
+            .Replace("{resting-heart-rate-readings}", string.Join(", ", restingHRs))
+            .Replace("{max-heart-rate-readings}", string.Join(", ", maxHRs))
+            .Replace("{steps-readings}", string.Join(", ", stepsReadings))
+            .Replace("{steps-goal-completion}", "85") // hardcoded or fetched separately
+            .Replace("{activity-level}", "moderately active") // same
+            .Replace("{hrv-value}", "62") // default HRV
+            .Replace("{average-bedtime}", "10:30 PM")
+            .Replace("{average-wake-up-time}", "6:30 AM")
+            .Replace("{stress-level-description}", "moderate")
+            .Replace("{cardiac-history-flag}", "no")
             .Replace("{age}", patientProfile.Age.ToString())
             .Replace("{gender}", patientProfile.Gender)
             .Replace("{prehypertension-flag}", patientProfile.HasPrehypertension ? "a" : "no");
@@ -193,6 +200,16 @@ public class MedplumController : ControllerBase
         var aiResponse = await _geminiService.GetInsightFromPrompt(finalPrimed);
 
         return Ok(new { htmlResponse = aiResponse });
+    }
+
+    private List<int> GetLatestValues(List<VirtualHealthAPI.VitalTrendResult> vitals, string type, int count)
+    {
+        return vitals
+            .Where(v => v.Type.Equals(type, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(v => v.Timestamp)
+            .Take(count)
+            .Select(v => (int)v.Value) // Cast Value to int as VitalTrendResult.Value is double
+            .ToList();
     }
 
     private int CalculateAge(string birthDateString)
@@ -208,22 +225,17 @@ public class MedplumController : ControllerBase
     }
 
 
-
 }
 public class InsightRequest
 {
     public string Prompt { get; set; }
     public string PatientId { get; set; }
 }
-public class PromptEntry
-{
-    public string UserPrompt { get; set; }
-    public string Primed { get; set; }
-}
+
 public class VitalReading
 {
-    public string Type { get; set; }           // e.g., "SystolicBP"
-    public int Value { get; set; }             // e.g., 120
-    public DateTime Timestamp { get; set; }    // e.g., 2025-06-22T...
+    public string Type { get; set; }
+    public int Value { get; set; }
+    public DateTime Timestamp { get; set; }
 }
 
