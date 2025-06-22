@@ -1,24 +1,35 @@
 ﻿using Amazon.S3;
 using Amazon.S3.Model;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 
 namespace VirtualHealthAPI
 {
-        public class S3AlarmReader
+    public class S3AlarmReader
+    {
+        private readonly IAmazonS3 _s3Client;
+        private const string BucketName = "health-alert-logs";
+
+        public S3AlarmReader(IAmazonS3 s3Client)
         {
-            private readonly IAmazonS3 _s3Client;
-            private const string BucketName = "health-alert-logs";
+            _s3Client = s3Client;
+        }
 
-            public S3AlarmReader(IAmazonS3 s3Client)
-            {
-                _s3Client = s3Client;
-            }
+        public async Task<List<AlarmNotification>> GetAlarmNotification(string patientId)
+        {
+            if (string.IsNullOrWhiteSpace(patientId))
+                patientId = "01978609-4506-72a9-a00e-8083bbf66207"; // fallback for local testing
 
-            public async Task<List<AlarmNotification>> GetAlarmNotification(string patientId)
+            var notifications = new List<AlarmNotification>();
+
+            for (int i = 0; i < 2; i++)
             {
-                var dateToken = DateTime.UtcNow.ToString("yyyy/MM/dd");
-                var prefix = $"{patientId}/{dateToken}/";
+                //var dateToken = DateTime.UtcNow.AddDays(-i).ToString("yyyy/MM/dd");
+                var date = DateTime.UtcNow.AddDays(-i);
+                var prefix = $"{patientId}/{date.Year}/{date.Month:D2}/{date.Day:D2}/";
+
+                Console.WriteLine($"🔍 Checking prefix: {prefix}");
 
                 var listRequest = new ListObjectsV2Request
                 {
@@ -27,83 +38,51 @@ namespace VirtualHealthAPI
                 };
 
                 var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
-
                 if (listResponse.S3Objects == null || !listResponse.S3Objects.Any())
-                {
-                    Console.WriteLine($"No objects found for patient {patientId} on {dateToken}");
-                    return new List<AlarmNotification>();
-                } 
-                    
+                    continue;
+
                 var jsonFiles = listResponse.S3Objects
                     .Where(o => o.Key.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
                     .ToList();
 
-                var recentFiles = jsonFiles
-                    .Select(o => new
-                    {
-                        Object = o,
-                        //Timestamp = ExtractTimestampFromFilename(o.Key)
-                        Timestamp = o.Key
-                    })
-                    .Where(x => x.Timestamp != null)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(100) //TBD read it from configuration
-                    .ToList();
-
-                var notifications = new List<AlarmNotification>();
-
-                foreach (var file in recentFiles)
+                foreach (var file in jsonFiles)
                 {
-                    var getRequest = new GetObjectRequest
-                    {
-                        BucketName = BucketName,
-                        Key = file.Object.Key
-                    };
-
-                    using var response = await _s3Client.GetObjectAsync(getRequest);
-                    using var reader = new StreamReader(response.ResponseStream);
-                    string json = await reader.ReadToEndAsync();
-
                     try
                     {
-                        var notification = JsonSerializer.Deserialize<AlarmNotification>(json, new JsonSerializerOptions
+                        var getRequest = new GetObjectRequest
+                        {
+                            BucketName = BucketName,
+                            Key = file.Key
+                        };
+
+                        using var response = await _s3Client.GetObjectAsync(getRequest);
+                        using var reader = new StreamReader(response.ResponseStream);
+                        var json = await reader.ReadToEndAsync();
+                        // Fix invalid timestamp format using regex BEFORE deserializing
+                        json = Regex.Replace(json, @"""timestamp"":\s*""(\d{4}-\d{2}-\d{2}T\d{2})-(\d{2})-(\d{2})Z""", m =>
+                        {
+                            return $@"""timestamp"":""{m.Groups[1].Value}:{m.Groups[2].Value}:{m.Groups[3].Value}Z""";
+                        });
+
+                        // Deserialize using wrapper
+                        var wrapper = JsonSerializer.Deserialize<AlarmResponseWrapper>($"{{ \"Message\": [{json}] }}", new JsonSerializerOptions
                         {
                             PropertyNameCaseInsensitive = true
                         });
 
-                        if (notification != null)
+                        if (wrapper?.Message != null)
                         {
-                            notifications.Add(notification);
+                            notifications.AddRange(wrapper.Message);
                         }
                     }
-                    catch (JsonException ex)
+                    catch (Exception ex)
                     {
-                        Console.WriteLine($"Error deserializing {file.Object.Key}: {ex.Message}");
+                        Console.WriteLine($"❌ Error reading {file.Key}: {ex.Message}");
                     }
                 }
-
-                return notifications;
             }
 
-            private static DateTime? ExtractTimestampFromFilename(string key)
-            {
-                try
-                {
-                    var filename = Path.GetFileNameWithoutExtension(key);
-                    var match = Regex.Match(filename, @"(\d{8}T\d{6}Z)");
-                if (match.Success &&
-                    DateTime.TryParseExact(match.Value, "yyyy-MM-dd'T'HH-mm-ss'Z'", null,  //2025-06-21T13-10-17Z
-                        System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal, out DateTime parsedDate))
-                {
-                    return parsedDate;
-                }
-                }
-                catch
-                {
-                    // Ignore parsing errors
-                }
-
-                return null;
-            }
+            return notifications;
         }
     }
+}
