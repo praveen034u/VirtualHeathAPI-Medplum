@@ -17,10 +17,7 @@ namespace VirtualHealthAPI
         }
 
         public async Task<List<AlarmNotification>> GetAlarmNotification(string patientId)
-        {
-            if (string.IsNullOrWhiteSpace(patientId))
-                patientId = "01978609-4506-72a9-a00e-8083bbf66207"; // fallback for local testing
-
+        { 
             var notifications = new List<AlarmNotification>();
 
             for (int i = 0; i < 2; i++)
@@ -38,12 +35,8 @@ namespace VirtualHealthAPI
                 };
 
                 var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
-                
                 if (listResponse.S3Objects == null || !listResponse.S3Objects.Any())
-                {
-                    Console.WriteLine($"No objects found for patient {patientId} on {dateToken}");
-                    return new List<AlarmNotification>();
-                }   
+                    continue;
 
                 var jsonFiles = listResponse.S3Objects
                     .Where(o => o.Key.EndsWith(".json", StringComparison.OrdinalIgnoreCase))
