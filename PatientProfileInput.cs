@@ -47,6 +47,7 @@ public class PatientProfileInput
     public List<LifestyleInput> LifestyleHistories { get; set; } = new();
 
     public List<ConsentInput> Consent { get; set; } = new();
+    public bool Conditions { get;  set; }
 }
 
 public class PatientAddressInput

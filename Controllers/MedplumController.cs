@@ -6,10 +6,14 @@ using VirtualHealthAPI;
 public class MedplumController : ControllerBase
 {
     private readonly MedplumService _medplum;
+    private readonly PromptLibraryService _promptLibrary;
+    private readonly GeminiService _geminiService;
 
-    public MedplumController(MedplumService medplum)
+    public MedplumController(MedplumService medplum, PromptLibraryService promptLibrary, GeminiService geminiService)
     {
         _medplum = medplum;
+        _promptLibrary = promptLibrary;
+        _geminiService = geminiService;
     }
 
     [HttpPost("create-profile-with-pcp-and-vitals")]
@@ -142,4 +146,84 @@ public class MedplumController : ControllerBase
         return Ok(new { message = result });
 
     }
+    [HttpPost("generate")]
+    public async Task<IActionResult> GenerateHealthInsight([FromBody] InsightRequest request)
+    {
+        var promptTemplate = _promptLibrary.GetPrimedPrompt(request.Prompt?.Trim());
+        if (string.IsNullOrEmpty(promptTemplate))
+            return BadRequest("Invalid prompt.");
+
+        var patientProfileInput = await _medplum.GetPatientFullProfileByPatientIdAsync(request.PatientId);
+
+  
+
+        var patientProfile = new PatientProfile
+        {
+            Age = CalculateAge(patientProfileInput.BirthDate),
+            Gender = patientProfileInput.Gender?.ToString()?.ToLower() ?? "unknown",
+            HasPrehypertension = patientProfileInput.PastConditions != null &&
+                                 patientProfileInput.PastConditions.Any(c =>
+                                     c.Display.Contains("prehypertension", StringComparison.OrdinalIgnoreCase))
+        };
+
+        var vitals = await _medplum.GetVitalsTrendAsync(request.PatientId);
+
+        // Group systolic and diastolic BP readings (latest 7 each)
+        var systolicReadings = vitals
+            .Where(v => v.Type == "SystolicBP")
+            .OrderByDescending(v => v.Timestamp)
+            .Take(7)
+            .Select(v => v.Value)
+            .ToList();
+
+        var diastolicReadings = vitals
+            .Where(v => v.Type == "DiastolicBP")
+            .OrderByDescending(v => v.Timestamp)
+            .Take(7)
+            .Select(v => v.Value)
+            .ToList();
+
+        var finalPrimed = promptTemplate
+            .Replace("{bp-sys-readings}", string.Join(", ", systolicReadings))
+            .Replace("{bp-dist-readings}", string.Join(", ", diastolicReadings))
+            .Replace("{age}", patientProfile.Age.ToString())
+            .Replace("{gender}", patientProfile.Gender)
+            .Replace("{prehypertension-flag}", patientProfile.HasPrehypertension ? "a" : "no");
+
+        var aiResponse = await _geminiService.GetInsightFromPrompt(finalPrimed);
+
+        return Ok(new { htmlResponse = aiResponse });
+    }
+
+    private int CalculateAge(string birthDateString)
+    {
+        if (string.IsNullOrEmpty(birthDateString)) return 0;
+
+        if (!DateTime.TryParse(birthDateString, out var birthDate)) return 0;
+
+        var today = DateTime.Today;
+        var age = today.Year - birthDate.Year;
+        if (birthDate.Date > today.AddYears(-age)) age--;
+        return age;
+    }
+
+
+
 }
+public class InsightRequest
+{
+    public string Prompt { get; set; }
+    public string PatientId { get; set; }
+}
+public class PromptEntry
+{
+    public string UserPrompt { get; set; }
+    public string Primed { get; set; }
+}
+public class VitalReading
+{
+    public string Type { get; set; }           // e.g., "SystolicBP"
+    public int Value { get; set; }             // e.g., 120
+    public DateTime Timestamp { get; set; }    // e.g., 2025-06-22T...
+}
+

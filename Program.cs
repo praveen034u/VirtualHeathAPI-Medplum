@@ -38,6 +38,8 @@ var s3Config = new AmazonS3Config
 {
     RegionEndpoint = RegionEndpoint.GetBySystemName(awsSettings?.Region)
 };
+builder.Services.AddHttpClient<GeminiService>();
+builder.Services.AddSingleton<PromptLibraryService>();
 
 var s3Client = new AmazonS3Client(awsSettings?.AccessKey, awsSettings?.SecretKey, s3Config);
 
@@ -46,11 +48,11 @@ builder.Services.AddSingleton<IAmazonS3>(s3Client);
 
 // Listen on PORT from Cloud Run environment 
 // comment for local development and uncomment for sever
-builder.WebHost.ConfigureKestrel(serverOptions =>
-{
-    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-    serverOptions.ListenAnyIP(Int32.Parse(port));
-});
+//builder.WebHost.ConfigureKestrel(serverOptions =>
+//{
+//    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+//    serverOptions.ListenAnyIP(Int32.Parse(port));
+//});
 
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 
