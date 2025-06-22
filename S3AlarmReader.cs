@@ -38,7 +38,9 @@ namespace VirtualHealthAPI
                 };
 
                 var listResponse = await _s3Client.ListObjectsV2Async(listRequest);
+                
                 if (listResponse.S3Objects == null || !listResponse.S3Objects.Any())
+                {
                     Console.WriteLine($"No objects found for patient {patientId} on {dateToken}");
                     return new List<AlarmNotification>();
                 }   
