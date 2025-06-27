@@ -25,8 +25,7 @@ Here is the data:
 - HRV: {hrv-value}
 
 User is a {age} year old {gender}.
-
-Return the summary in a clear <ul> format inside a <div>. Keep it short, practical, and clinical yet friendly. Do not add introductory or closing text."
+Return the summary with a styled HTML <div class='ai-response-html p-3 border rounded bg-light'> containing a <ul class='ps-3'> of 5 <li> points. Do not include introductory or closing text, backticks, or markdown."
 },
                 {
                     "How is my blood pressure trend?",
