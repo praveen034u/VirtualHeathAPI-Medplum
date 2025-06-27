@@ -25,7 +25,7 @@ Here is the data:
 - HRV: {hrv-value}
 
 User is a {age} year old {gender}.
-Return the summary with a styled HTML <div class='ai-response-html p-3 border rounded bg-light'> containing a <ul class='ps-3'> of 5 <li> points. Do not include introductory or closing text, backticks, or markdown."
+Return the summary using a clean HTML <div> and an unordered list <ul> of 5 <li> items. Do not include any Bootstrap classes, inline styles, or markdown.Only use plain HTML tags. Do not wrap the HTML in backticks."
 },
                 {
                     "How is my blood pressure trend?",
