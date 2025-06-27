@@ -9,6 +9,26 @@
             _prompts = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 {
+    "Give me a personalized health summary",
+    @"You are a virtual health assistant.
+
+Please analyze the user's recent health vitals (last 7 days) and provide 5 key personalized insights or suggestions to help improve their overall well-being.
+
+Here is the data:
+- Systolic BP: [{bp-sys-readings}]
+- Diastolic BP: [{bp-dist-readings}]
+- Sleep hours: [{sleep-duration-readings}]
+- Stress index: [{stress-readings}]
+- Steps: [{steps-readings}]
+- Resting HR: [{resting-heart-rate-readings}]
+- Max HR: [{max-heart-rate-readings}]
+- HRV: {hrv-value}
+
+User is a {age} year old {gender}.
+
+Return the summary in a clear <ul> format inside a <div>. Keep it short, practical, and clinical yet friendly. Do not add introductory or closing text."
+},
+                {
                     "How is my blood pressure trend?",
                     @"You are a virtual health assistant.
 
