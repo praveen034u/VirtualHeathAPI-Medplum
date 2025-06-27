@@ -16,7 +16,11 @@
       "launchUrl": "swagger",
       "applicationUrl": "http://localhost:5141",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AWS_ACCESS_KEY_ID": "your-access-key-id", // read from git secret
+        "AWS_SECRET_ACCESS_KEY": "your-secret-access-key", // read from git secret
+        "AWS_REGION": "your-region", // read from git secret
+        "INFLUX_TOKEN": "default-token" // read from git secret
       }
     },
     "https": {
@@ -26,7 +30,11 @@
       "launchUrl": "swagger",
       "applicationUrl": "https://localhost:7195;http://localhost:5141",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AWS_ACCESS_KEY_ID": "your-access-key-id",
+        "AWS_SECRET_ACCESS_KEY": "your-secret-access-key",
+        "AWS_REGION": "your-region",
+        "INFLUX_TOKEN": "default-token"
       }
     },
     "IIS Express": {
@@ -34,7 +42,11 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "AWS_ACCESS_KEY_ID": "your-access-key-id",
+        "AWS_SECRET_ACCESS_KEY": "your-secret-access-key",
+        "AWS_REGION": "your-region",
+        "INFLUX_TOKEN": "default-token"
       }
     }
   }
