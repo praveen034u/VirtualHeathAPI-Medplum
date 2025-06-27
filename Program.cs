@@ -32,8 +32,14 @@ builder.Services.AddScoped(sp => new HttpClient
     BaseAddress = new Uri("http://localhost:8000") 
 });
 
-builder.Services.Configure<AWSSettings>(builder.Configuration.GetSection("AWS"));
-var awsSettings = builder.Configuration.GetSection("AWS").Get<AWSSettings>();
+// Read AWS settings from GitHub secret environment variables
+var awsSettings = new AWSSettings
+{
+    AccessKey = Environment.GetEnvironmentVariable("AWS_ACCESS_KEY_ID"),
+    SecretKey = Environment.GetEnvironmentVariable("AWS_SECRET_ACCESS_KEY"),
+    Region = Environment.GetEnvironmentVariable("AWS_REGION")
+};
+
 var s3Config = new AmazonS3Config
 {
     RegionEndpoint = RegionEndpoint.GetBySystemName(awsSettings?.Region)
@@ -48,17 +54,17 @@ builder.Services.AddSingleton<IAmazonS3>(s3Client);
 
 // Listen on PORT from Cloud Run environment 
 // comment for local development and uncomment for sever
-//builder.WebHost.ConfigureKestrel(serverOptions =>
-//{
-//    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-//    serverOptions.ListenAnyIP(Int32.Parse(port));
-//});
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    serverOptions.ListenAnyIP(Int32.Parse(port));
+});
 
 // ── INFLUXDB CLIENT (Vitals) ───────────────────────────────────────────────────
 
 // Pull these four settings from appsettings.json under “Influx”
 var influxUrl = builder.Configuration["Influx:Url"]!;
-var influxToken = builder.Configuration["Influx:Token"]!;
+var influxToken = Environment.GetEnvironmentVariable("INFLUX_TOKEN");
 var influxOrg = builder.Configuration["Influx:Org"]!;
 var influxBucket = builder.Configuration["Influx:Bucket"]!;
 
