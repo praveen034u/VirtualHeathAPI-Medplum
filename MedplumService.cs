@@ -1866,10 +1866,10 @@ namespace VirtualHealthAPI
                         healthMetricsInput.RbcCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "6690-2": // wbc_count
-                        healthMetricsInput.WbcCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        healthMetricsInput.WbcCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "777-3": // platelet_count
-                        healthMetricsInput.PlateletCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        healthMetricsInput.PlateletCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "3016-3": // tsh
                         healthMetricsInput.Tsh = Convert.ToDouble(observation.Value.Split(" ")[0]);
