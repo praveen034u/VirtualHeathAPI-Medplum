@@ -6,10 +6,14 @@ using VirtualHealthAPI;
 public class MedplumController : ControllerBase
 {
     private readonly MedplumService _medplum;
+    private readonly PromptLibraryService _promptLibrary;
+    private readonly GeminiService _geminiService;
 
-    public MedplumController(MedplumService medplum)
+    public MedplumController(MedplumService medplum, PromptLibraryService promptLibrary, GeminiService geminiService)
     {
         _medplum = medplum;
+        _promptLibrary = promptLibrary;
+        _geminiService = geminiService;
     }
 
     [HttpPost("create-profile-with-pcp-and-vitals")]
@@ -142,4 +146,96 @@ public class MedplumController : ControllerBase
         return Ok(new { message = result });
 
     }
+    [HttpPost("generate")]
+    public async Task<IActionResult> GenerateHealthInsight([FromBody] InsightRequest request)
+    {
+        var promptTemplate = _promptLibrary.GetPrimedPrompt(request.Prompt?.Trim());
+        if (string.IsNullOrEmpty(promptTemplate))
+            return BadRequest("Invalid prompt.");
+
+        var patientProfileInput = await _medplum.GetPatientFullProfileByPatientIdAsync(request.PatientId);
+
+        var patientProfile = new PatientProfile
+        {
+            Age = CalculateAge(patientProfileInput.BirthDate),
+            Gender = patientProfileInput.Gender?.ToString()?.ToLower() ?? "unknown",
+            HasPrehypertension = patientProfileInput.PastConditions != null &&
+                                 patientProfileInput.PastConditions.Any(c =>
+                                     c.Display.Contains("prehypertension", StringComparison.OrdinalIgnoreCase))
+        };
+
+        var vitals = await _medplum.GetVitalsTrendAsync(request.PatientId);
+
+        // Extract various vitals as needed
+        var systolicReadings = GetLatestValues(vitals, "SystolicBP", 7);
+        var diastolicReadings = GetLatestValues(vitals, "DiastolicBP", 7);
+        var sleepDurations = GetLatestValues(vitals, "SleepDuration", 7);
+        var sleepRestlessness = GetLatestValues(vitals, "SleepRestlessness", 7);
+        var stressReadings = GetLatestValues(vitals, "Stress", 7);
+        var restingHRs = GetLatestValues(vitals, "RestingHeartRate", 7);
+        var maxHRs = GetLatestValues(vitals, "MaxHeartRate", 7);
+        var stepsReadings = GetLatestValues(vitals, "Steps", 7);
+
+        // Replace placeholders if they exist
+        var finalPrimed = promptTemplate
+            .Replace("{bp-sys-readings}", string.Join(", ", systolicReadings))
+            .Replace("{bp-dist-readings}", string.Join(", ", diastolicReadings))
+            .Replace("{sleep-duration-readings}", string.Join(", ", sleepDurations))
+            .Replace("{sleep-restlessness-indexes}", string.Join(", ", sleepRestlessness))
+            .Replace("{stress-readings}", string.Join(", ", stressReadings))
+            .Replace("{resting-heart-rate-readings}", string.Join(", ", restingHRs))
+            .Replace("{max-heart-rate-readings}", string.Join(", ", maxHRs))
+            .Replace("{steps-readings}", string.Join(", ", stepsReadings))
+            .Replace("{steps-goal-completion}", "85") // hardcoded or fetched separately
+            .Replace("{activity-level}", "moderately active") // same
+            .Replace("{hrv-value}", "62") // default HRV
+            .Replace("{average-bedtime}", "10:30 PM")
+            .Replace("{average-wake-up-time}", "6:30 AM")
+            .Replace("{stress-level-description}", "moderate")
+            .Replace("{cardiac-history-flag}", "no")
+            .Replace("{age}", patientProfile.Age.ToString())
+            .Replace("{gender}", patientProfile.Gender)
+            .Replace("{prehypertension-flag}", patientProfile.HasPrehypertension ? "a" : "no");
+
+        var aiResponse = await _geminiService.GetInsightFromPrompt(finalPrimed);
+
+        return Ok(new { htmlResponse = aiResponse });
+    }
+
+    private List<int> GetLatestValues(List<VirtualHealthAPI.VitalTrendResult> vitals, string type, int count)
+    {
+        return vitals
+            .Where(v => v.Type.Equals(type, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(v => v.Timestamp)
+            .Take(count)
+            .Select(v => (int)v.Value) // Cast Value to int as VitalTrendResult.Value is double
+            .ToList();
+    }
+
+    private int CalculateAge(string birthDateString)
+    {
+        if (string.IsNullOrEmpty(birthDateString)) return 0;
+
+        if (!DateTime.TryParse(birthDateString, out var birthDate)) return 0;
+
+        var today = DateTime.Today;
+        var age = today.Year - birthDate.Year;
+        if (birthDate.Date > today.AddYears(-age)) age--;
+        return age;
+    }
+
+
 }
+public class InsightRequest
+{
+    public string Prompt { get; set; }
+    public string PatientId { get; set; }
+}
+
+public class VitalReading
+{
+    public string Type { get; set; }
+    public int Value { get; set; }
+    public DateTime Timestamp { get; set; }
+}
+
