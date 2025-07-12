@@ -247,7 +247,7 @@ public class MedplumController : ControllerBase
     public async Task<IActionResult> CreatePrescription([FromBody] Prescription prescription)
     {
         // For testing, replace with actual data from request
-        prescription = GetPrescriptionSampleData(); 
+        //prescription = GetPrescriptionSampleData(); 
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
          var message = await _medplum.CreatePatientPrescriptionAsync(prescription);
