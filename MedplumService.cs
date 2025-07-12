@@ -3036,60 +3036,7 @@ namespace VirtualHealthAPI
             var alarmNotificationList = await _s3alarmReader.GetAlarmNotification(patientId);
             return alarmNotificationList;
         }
-        /*
-        public async Task<string> CreatePatientPrescriptionAsync(Prescription prescription)
-        {
-            var token = await GetAccessTokenAsync();
-            var client = _httpClientFactory.CreateClient();
-            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
-
-            var payload = new
-            {
-                resourceType = "MedicationRequest",
-                status = "active",
-                intent = "order",
-                authoredOn = prescription.DateWritten.ToString("o"),
-                subject = new
-                {
-                    display = $"{prescription.Patient.FirstName} {prescription.Patient.LastName}"
-                },
-                requester = new
-                {
-                    display = prescription.Prescriber.Name
-                },
-                medicationCodeableConcept = new
-                {
-                    text = prescription.Medication.Name
-                },
-                dosageInstruction = new[]
-                {
-                    new
-                    {
-                        text = prescription.Directions + (string.IsNullOrEmpty(prescription.Duration) ? "" : $" for {prescription.Duration}")
-                    }
-                },
-                dispenseRequest = new
-                {
-                    quantity = new
-                    {
-                        value = prescription.Quantity.Amount,
-                        unit = prescription.Quantity.Unit
-                    },
-                    numberOfRepeatsAllowed = prescription.Refills
-                },
-                note = prescription.PharmacyInstructions
-            };
-
-            var json = JsonSerializer.Serialize(payload);
-            var res = await client.PostAsync($"{_config["Medplum:FhirUrl"]}/MedicationRequest",
-                new StringContent(json, Encoding.UTF8, "application/fhir+json"));
-            res.EnsureSuccessStatusCode();
-
-            return $"Created prescription in FHIR server.";
-        }
-        */
-
+    
         public async Task<string> CreatePatientPrescriptionAsync(Prescription prescription)
         {
             //prescription.PrescriptionId ??= Guid.NewGuid().ToString();
@@ -3213,32 +3160,6 @@ namespace VirtualHealthAPI
 
             return prescriptions;
         }
-        //public async Task<List<ConsentInput>> GetPatientConsentAsync(string patientId)
-        //{
-        //    var token = await GetAccessTokenAsync();
-        //    var client = _httpClientFactory.CreateClient();
-        //    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-        //    client.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
-        //    var response = await client.GetAsync($"{_config["Medplum:FhirUrl"]}/Consent?patient=Patient/{patientId}");
-        //    response.EnsureSuccessStatusCode();
-        //    var content = await response.Content.ReadAsStringAsync();
-        //    var jsonDoc = JsonDocument.Parse(content);
-        //    if (!jsonDoc.RootElement.TryGetProperty("entry", out var entries))
-        //        return new List<ConsentInput>();
-        //    var consents = new List<ConsentInput>();
-        //    foreach (var entry in entries.EnumerateArray())
-        //    {
-        //        var resource = entry.GetProperty("resource");
-        //        var consent = new ConsentInput
-        //        {
-        //            Id = resource.GetProperty("id").GetString(),
-        //            Code = resource.GetProperty("scope").GetProperty("coding")[0].GetProperty("code").GetString(),
-        //            Display = resource.GetProperty("scope").GetProperty("coding")[0].GetProperty("display").GetString(),
-        //            IsSelected = resource.GetProperty("policyRule").GetProperty("coding")[0].GetProperty("code").GetString() == "opt-in"
-        //        };
-        //        consents.Add(consent);
-        //    }
-        //    return consents;
-        //}
+       
     }
 }
