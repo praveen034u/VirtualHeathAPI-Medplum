@@ -1,4 +1,5 @@
-﻿using VirtualHealthAPI;
+﻿using System.ComponentModel.DataAnnotations;
+using VirtualHealthAPI;
 
 public class PatientProfileInput
 {
@@ -47,7 +48,7 @@ public class PatientProfileInput
     public List<LifestyleInput> LifestyleHistories { get; set; } = new();
 
     public List<ConsentInput> Consent { get; set; } = new();
-    public bool Conditions { get;  set; }
+    public bool Conditions { get; set; }
 }
 
 public class PatientAddressInput
@@ -177,7 +178,7 @@ public class ObservationSummary
     public string Categories { get; set; } = string.Empty;   // vital-signs, social-history etc.
     public string Value { get; set; } = string.Empty;         // 78 beats/min, 120 mmHg etc.
     public decimal? decValue { get; set; }         // 78, 120.55.
-    public string? unit {  get; set; }
+    public string? unit { get; set; }
     public string? StatusCode { get; set; }
     public string CapturedBy { get; set; } = string.Empty;
     public string EffectiveDateTime { get; set; } = string.Empty;  // 2025-04-27T10:00:00Z
@@ -229,3 +230,110 @@ public class ConsentInput
     public string Display { get; set; } = default!;
     public bool IsSelected { get; set; } = false; // For checkbox binding
 }
+
+public class Patient
+{
+    [Required]
+    public string PatientId { get; set; }
+    [Required]
+    [StringLength(100)]
+    public string FirstName { get; set; }
+    [Required]
+    [StringLength(100)]
+    public string LastName { get; set; }
+    //[Required]
+    //public string DateOfBirth { get; set; }  // Or DateTime if you prefer
+   // [StringLength(200)]
+    //public string Address { get; set; }
+    //[Phone]
+    //public string Phone { get; set; }
+}
+
+public class Prescriber
+{
+    //public string Id { get; set; }
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; }
+    [StringLength(50)]
+    public string LicenseNumber { get; set; }
+    //[StringLength(100)]
+    //public string Clinic { get; set; }
+    //[StringLength(200)]
+    //public string Address { get; set; }
+    //[Phone]
+    //public string Phone { get; set; }
+}
+public class Medication
+{
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; }
+   // [Required]
+    [StringLength(50)]
+    public string Strength { get; set; }
+    //[Required]
+    [StringLength(50)]
+    public string Form { get; set; }
+   // [Required]
+    [StringLength(50)]
+    public string Route { get; set; }
+    //[StringLength(100)]
+    //public string Manufacturer { get; set; }
+}
+
+public class Quantity
+{
+    [Required]
+    [Range(1, int.MaxValue, ErrorMessage = "Amount must be at least 1.")]
+    public int Amount { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    // Description: Unit of measurement for the medication quantity (e.g., 'capsules', 'tablets').
+    public string Unit { get; set; }  // capsules or tablets, etc.
+}
+
+public class Pharmacy
+{
+    //[Required]
+    //public string PharmacyId { get; set; }
+
+    [Required]
+    [StringLength(100)]
+    public string Name { get; set; }
+
+    [StringLength(200)]
+    public string Address { get; set; }
+
+   // [Phone]
+    public string Phone { get; set; }
+}
+public class Prescription
+{
+    //public string PrescriptionId { get; set; }
+    //[Required]
+    //public DateTime DateWritten { get; set; }
+    [Required]
+    public Patient Patient { get; set; }
+    [Required]
+    public Prescriber Prescriber { get; set; }
+    [Required]
+    public Medication Medication { get; set; }
+    [Required]
+    [StringLength(300)]
+    public string Directions { get; set; }
+    [Required]
+    [StringLength(50)]
+    public string Duration { get; set; } // "7 days";
+    [Required]
+    public Quantity Quantity { get; set; }
+    [Required]
+    public Pharmacy Pharmacy { get; set; }
+    [Range(0, 10, ErrorMessage = "Refills must be between 0 and 10.")]
+    public int Refills { get; set; }
+
+    public List<string> PharmacyInstructions { get; set; }
+   //public List<string> Warnings { get; set; }
+}
+

@@ -224,6 +224,104 @@ public class MedplumController : ControllerBase
         return age;
     }
 
+    /* [HttpPost("create-prescription")]
+     public async Task<IActionResult> CreatePrescription([FromBody] Prescription prescription)
+     {
+
+         try
+         {
+             if (prescription == null)
+                 return BadRequest("Prescription cannot be null.");
+             prescription = GetPrescriptionSampleData(); // For testing, replace with actual data from request
+             var result = await _medplum.CreatePrescriptionAsync(prescription);
+             return Ok(new { message = result });
+         }
+         catch (Exception ex)
+         {
+             // Log error
+             return StatusCode(500, new { Error = ex.Message });
+         }
+     } */
+    // POST: api/prescription
+    [HttpPost("create-prescription")]
+    public async Task<IActionResult> CreatePrescription([FromBody] Prescription prescription)
+    {
+        // For testing, replace with actual data from request
+        prescription = GetPrescriptionSampleData(); 
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+         var message = await _medplum.CreatePatientPrescriptionAsync(prescription);
+        return Ok(new { message });
+    }
+    // GET: api/prescription/patient/{patientId}
+    [HttpGet("get-prescription/{patientId}")]
+    public async Task<IActionResult> GetPrescriptionsByPatientId(string patientId)
+    {
+        var prescriptions = await _medplum.GetPatientPrescriptionsAsync(patientId);
+        if (prescriptions.Count == 0)
+            return NotFound($"No prescriptions found for Patient/{patientId}.");
+
+        return Ok(prescriptions);
+    }
+    private Prescription GetPrescriptionSampleData()
+    {
+        var prescription = new Prescription
+        {
+            //PrescriptionId = "RX20250703001",
+            //DateWritten = DateTime.Parse("2025-07-03"),
+            Patient = new Patient
+            {
+                PatientId = "01978609-4506-72a9-a00e-8083bbf66207",// "PAT1001",
+                FirstName = "Darshan",
+                LastName = "Singh",
+                //DateOfBirth = "1980-02-10",
+                //Address = "456 Elm Street, Springfield",
+                //Phone = "(555) 222-3344"
+            },
+            Prescriber = new Prescriber
+            {
+                ////Id = "PROV9001",
+                Name = "Dr. Maria Singh, MD",
+                LicenseNumber = "MD-123456",
+                //Clinic = "City Health Clinic",
+                //Address = "123 Main Street, Springfield",
+                //Phone = "(555) 123-4567"
+            },
+            Medication = new Medication
+            {
+                Name = "Amoxicillin",
+                Strength = "500 mg",
+                Form = "Capsule",
+                Route = "Oral",
+                //Manufacturer = "Generic Pharma Inc."
+            },
+            Directions = "Take 1 capsule by mouth every 8 hours",
+            Duration = "7 days",
+            Quantity = new Quantity
+            {
+                Amount = 21,
+                Unit = "capsules"
+            },
+            Refills = 0,
+            Pharmacy = new Pharmacy
+            {
+                Name = "City Pharmacy",
+                Address = "789 Maple Avenue, Springfield",
+                Phone = "(555) 987-6543"
+            },
+            PharmacyInstructions = new List<string>
+            {
+                "Finish all medication unless otherwise directed",
+                "Take with food if stomach upset occurs"
+            }
+            //Warnings = new List<string>
+            //{
+            //    "Do not skip doses",
+            //    "Consult your doctor if symptoms persist"
+            //}
+        };
+        return prescription;
+    }
 
 }
 public class InsightRequest
