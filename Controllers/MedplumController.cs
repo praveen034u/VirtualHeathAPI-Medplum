@@ -246,10 +246,13 @@ public class MedplumController : ControllerBase
     [HttpPost("create-prescription")]
     public async Task<IActionResult> CreatePrescription([FromBody] Prescription prescription)
     {
-        // For testing, replace with actual data from request
-        //prescription = GetPrescriptionSampleData(); 
+        // For testing, get sample data 
+        // prescription = GetPrescriptionSampleData();
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+        if (prescription == null || prescription.Medications == null || prescription.Medications.Count == 0)
+            throw new ArgumentException("Prescription must include at least one medication.");
+        
          var message = await _medplum.CreatePatientPrescriptionAsync(prescription);
         return Ok(new { message });
     }
@@ -287,22 +290,47 @@ public class MedplumController : ControllerBase
                 //Address = "123 Main Street, Springfield",
                 //Phone = "(555) 123-4567"
             },
-            Medication = new Medication
+            Medications = new List<MedicationOrder>
             {
-                Name = "Amoxicillin",
-                Strength = "500 mg",
-                Form = "Capsule",
-                Route = "Oral",
-                //Manufacturer = "Generic Pharma Inc."
+                new MedicationOrder
+                    {
+                        Medication = new Medication
+                        {
+                            Name = "Amoxicillin",
+                            Strength = "500 mg",
+                            Form = "Capsule",
+                            Route = "Oral",
+                           // Manufacturer = "Generic Pharma Inc."
+                        },
+                        Directions = "Take 1 capsule by mouth every 8 hours",
+                        Duration = "7 days",
+                        Quantity = new Quantity
+                        {
+                            Amount = 21,
+                            Unit = "capsules"
+                        },
+                        Refills = 0
+                    },
+                    new MedicationOrder
+                    {
+                        Medication = new Medication
+                        {
+                            Name = "Ibuprofen",
+                            Strength = "200 mg",
+                            Form = "Tablet",
+                            Route = "Oral",
+                           // Manufacturer = "PainRelief Inc."
+                        },
+                        Directions = "Take 1 tablet every 6 hours as needed for pain",
+                        Duration = "5 days",
+                        Quantity = new Quantity
+                        {
+                            Amount = 20,
+                            Unit = "tablets"
+                        },
+                        Refills = 1
+                    }
             },
-            Directions = "Take 1 capsule by mouth every 8 hours",
-            Duration = "7 days",
-            Quantity = new Quantity
-            {
-                Amount = 21,
-                Unit = "capsules"
-            },
-            Refills = 0,
             Pharmacy = new Pharmacy
             {
                 Name = "City Pharmacy",
@@ -313,12 +341,12 @@ public class MedplumController : ControllerBase
             {
                 "Finish all medication unless otherwise directed",
                 "Take with food if stomach upset occurs"
+            },
+            Warnings = new List<string>
+            {
+                "Do not skip doses",
+                "Consult your doctor if symptoms persist"
             }
-            //Warnings = new List<string>
-            //{
-            //    "Do not skip doses",
-            //    "Consult your doctor if symptoms persist"
-            //}
         };
         return prescription;
     }

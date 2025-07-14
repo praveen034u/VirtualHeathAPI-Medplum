@@ -282,6 +282,25 @@ public class Medication
     //public string Manufacturer { get; set; }
 }
 
+public class MedicationOrder
+{
+    [Required]
+    public Medication Medication { get; set; }
+
+    [Required]
+    [StringLength(300)]
+    public string Directions { get; set; }
+
+    [Required]
+    [StringLength(50)]
+    public string Duration { get; set; }
+
+    [Required]
+    public Quantity Quantity { get; set; }
+
+    [Range(0, 10)]
+    public int Refills { get; set; }
+}
 public class Quantity
 {
     [Required]
@@ -319,21 +338,11 @@ public class Prescription
     [Required]
     public Prescriber Prescriber { get; set; }
     [Required]
-    public Medication Medication { get; set; }
-    [Required]
-    [StringLength(300)]
-    public string Directions { get; set; }
-    [Required]
-    [StringLength(50)]
-    public string Duration { get; set; } // "7 days";
-    [Required]
-    public Quantity Quantity { get; set; }
+    public List<MedicationOrder> Medications { get; set; } = new();
+
     [Required]
     public Pharmacy Pharmacy { get; set; }
-    [Range(0, 10, ErrorMessage = "Refills must be between 0 and 10.")]
-    public int Refills { get; set; }
-
     public List<string> PharmacyInstructions { get; set; }
-   //public List<string> Warnings { get; set; }
+   public List<string> Warnings { get; set; } = new();
 }
 

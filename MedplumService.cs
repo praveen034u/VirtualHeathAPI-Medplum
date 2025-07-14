@@ -3040,93 +3040,87 @@ namespace VirtualHealthAPI
         public async Task<string> CreatePatientPrescriptionAsync(Prescription prescription)
         {
             //prescription.PrescriptionId ??= Guid.NewGuid().ToString();
-           // prescription.DateWritten = DateTime.UtcNow;
+            // prescription.DateWritten = DateTime.UtcNow;
             var token = await GetAccessTokenAsync();
 
             _httpClient.DefaultRequestHeaders.Clear();
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
 
-            // Build FHIR MedicationRequest resource
-            var noteList = new List<object>();
-
-            if (prescription.PharmacyInstructions != null)
+            foreach (var medOrder in prescription.Medications)
             {
-                foreach (var instruction in prescription.PharmacyInstructions)
+                // Build FHIR MedicationRequest resource for EACH medication
+                var noteList = new List<object>();
+
+                if (prescription.PharmacyInstructions != null)
                 {
-                    noteList.Add(new { text = instruction });
+                    noteList.AddRange(prescription.PharmacyInstructions.Select(i => new { text = i }));
+                }
+
+                if (prescription.Warnings != null)
+                {
+                    noteList.AddRange(prescription.Warnings.Select(w => new { text = w }));
+                }
+
+                if (prescription.Pharmacy != null)
+                {
+                    noteList.Add(new
+                    {
+                        text = $"Pharmacy: {prescription.Pharmacy.Name}, Address: {prescription.Pharmacy.Address}, Phone: {prescription.Pharmacy.Phone}"
+                    });
+                }
+
+                var medicationRequest = new
+                {
+                    resourceType = "MedicationRequest",
+                    status = "active",
+                    intent = "order",
+                    authoredOn = DateTime.UtcNow,
+                    subject = new
+                    {
+                        reference = $"Patient/{prescription.Patient.PatientId}",
+                        display = $"{prescription.Patient.FirstName} {prescription.Patient.LastName}"
+                    },
+                    requester = new
+                    {
+                        display = prescription.Prescriber.Name
+                    },
+                    medicationCodeableConcept = new
+                    {
+                        text = medOrder.Medication.Name
+                    },
+                    dosageInstruction = new[]
+                    {
+                        new
+                        {
+                            text = $"{medOrder.Directions} for {medOrder.Duration}"
+                        }
+                    },
+                    dispenseRequest = new
+                    {
+                        quantity = new
+                        {
+                            value = medOrder.Quantity.Amount,
+                            unit = medOrder.Quantity.Unit
+                        },
+                        numberOfRepeatsAllowed = medOrder.Refills
+                    },
+                    note = noteList
+                };
+
+                // Serialize and POST
+                var json = JsonSerializer.Serialize(medicationRequest);
+                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/MedicationRequest",
+                    new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Failed to create MedicationRequest: {response.StatusCode} - {error}");
                 }
             }
 
-            //if (prescription.Warnings != null)
-            //{
-            //    foreach (var warning in prescription.Warnings)
-            //    {
-            //        noteList.Add(new { text = warning });
-            //    }
-            //}
-
-            if (prescription.Pharmacy != null)
-            {
-                noteList.Add(new
-                {
-                    text = $"Pharmacy: {prescription.Pharmacy.Name}, Address: {prescription.Pharmacy.Address}, Phone: {prescription.Pharmacy.Phone}"
-                });
-            }
-
-            var medicationRequest = new
-            {
-                resourceType = "MedicationRequest",
-                status = "active",
-                intent = "order",
-                authoredOn = DateTime.UtcNow.ToString("o"),//prescription.DateWritten.ToString("o"),
-                subject = new
-                {
-                    reference = $"Patient/{prescription.Patient.PatientId}",
-                    display = $"{prescription.Patient.FirstName} {prescription.Patient.LastName}"
-                },
-                requester = new
-                {
-                    display = prescription.Prescriber.Name
-                },
-                medicationCodeableConcept = new
-                {
-                    text = prescription.Medication.Name
-                },
-                dosageInstruction = new[]
-                {
-                    new
-                    {
-                        text = $"{prescription.Directions} for {prescription.Duration}"
-                    }
-                },
-                dispenseRequest = new
-                {
-                    quantity = new
-                    {
-                        value = prescription.Quantity.Amount,
-                        unit = prescription.Quantity.Unit
-                    },
-                    numberOfRepeatsAllowed = prescription.Refills
-                },
-                //note = new List<string>
-                //{
-                //    $"Pharmacy: {prescription.Pharmacy.Name}, Address: {prescription.Pharmacy.Address}, Phone: {prescription.Pharmacy.Phone}"
-                //}
-                note=noteList
-            };
-
-            var json = JsonSerializer.Serialize(medicationRequest);
-            var response = await _httpClient.PostAsync($"{_apiBaseUrl}/MedicationRequest",
-                new StringContent(json, Encoding.UTF8, "application/fhir+json"));
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                throw new Exception($"Failed to create prescription: {response.StatusCode} - {error}");
-            }
-
-            return "Prescription created successfully in Medplum.";
+            return "All medications submitted successfully to Medplum.";
         }
         public async Task<List<JsonElement>> GetPatientPrescriptionsAsync(string patientId)
         {
