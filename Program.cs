@@ -52,7 +52,7 @@ var s3Client = new AmazonS3Client(awsSettings?.AccessKey, awsSettings?.SecretKey
 // Register IAmazonS3 instance
 builder.Services.AddSingleton<IAmazonS3>(s3Client);
 
-// Listen on PORT from Cloud Run environment 
+// Listen on PORT from Cloud Run environment.
 // comment for local development and uncomment for sever
 builder.WebHost.ConfigureKestrel(serverOptions =>
 {
@@ -100,11 +100,11 @@ var app = builder.Build();
 
 // ── MIDDLEWARE PIPELINE ─────────────────────────────────────────────────────────
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
+//if (app.Environment.IsDevelopment())
+//{
     app.UseSwagger();
     app.UseSwaggerUI();
-}
+//}
 
 app.UseCors();               // enable CORS everywhere
 app.UseHttpsRedirection();
