@@ -197,7 +197,7 @@ public class MedplumController : ControllerBase
             .Replace("{gender}", patientProfile.Gender)
             .Replace("{prehypertension-flag}", patientProfile.HasPrehypertension ? "a" : "no");
 
-        var aiResponse = await _geminiService.GetInsightFromPrompt(finalPrimed);
+        var aiResponse = await _geminiService.GetInsightFromPrompt(finalPrimed, request.UserId);
 
         return Ok(new { htmlResponse = aiResponse });
     }
@@ -356,6 +356,8 @@ public class InsightRequest
 {
     public string Prompt { get; set; }
     public string PatientId { get; set; }
+
+    public string UserId { get; set; }
 }
 
 public class VitalReading

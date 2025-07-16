@@ -9,9 +9,9 @@
             _httpClient = httpClient;
         }
 
-        public async Task<string> GetInsightFromPrompt(string prompt)
+        public async Task<string> GetInsightFromPrompt(string prompt, string user_id)
         {
-            var payload = JsonContent.Create(new { prompt });
+            var payload = JsonContent.Create(new { prompt, user_id });
 
             var response = await _httpClient.PostAsync(
                 "https://gemini-langchain-api-907878265543.us-central1.run.app/generate", payload);
