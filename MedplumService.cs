@@ -55,24 +55,24 @@ namespace VirtualHealthAPI
             Console.WriteLine("Token URL: " + tokenUrl);
             Console.WriteLine("Client ID: " + clientId);
             Console.WriteLine("Client Secret: " + (string.IsNullOrEmpty(clientSecret) ? "MISSING" : "SET"));
-            HttpResponseMessage response= null;
+            HttpResponseMessage response = null;
             try
-            { 
-            var formData = new Dictionary<string, string>
             {
-                ["grant_type"] = "client_credentials",
-                ["client_id"] = clientId,
-                ["client_secret"] = clientSecret,
-                ["scope"] = "system/*.*"
-            };
-            Console.WriteLine($"Requesting token from {tokenUrl} with client ID {clientId} and clientSecret {clientSecret}");
-            response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
-            var responseBody = await response.Content.ReadAsStringAsync();
-               if (!response.IsSuccessStatusCode)
-               {
-                 Console.WriteLine($"Medplum token error {response.StatusCode}: {responseBody}");
-                 throw new ApplicationException("Medplum token request failed.");
-               }
+                var formData = new Dictionary<string, string>
+                {
+                    ["grant_type"] = "client_credentials",
+                    ["client_id"] = clientId,
+                    ["client_secret"] = clientSecret,
+                    ["scope"] = "system/*.*"
+                };
+                Console.WriteLine($"Requesting token from {tokenUrl} with client ID {clientId} and clientSecret {clientSecret}");
+                response = await client.PostAsync(tokenUrl, new FormUrlEncodedContent(formData));
+                var responseBody = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    Console.WriteLine($"Medplum token error {response.StatusCode}: {responseBody}");
+                    throw new ApplicationException("Medplum token request failed.");
+                }
 
                 var tokenResponse = JsonSerializer.Deserialize<Dictionary<string, object>>(responseBody);
                 return tokenResponse["access_token"].ToString();
@@ -100,34 +100,34 @@ namespace VirtualHealthAPI
             //     await writeApi.WritePointAsync(point, _bucket, _org);
             // }
             var writeApi = _influxClient.GetWriteApiAsync();
-      
-                var point = PointData
-                    .Measurement("vitals")
-                    .Tag("deviceId", input.DeviceId)
-                    .Tag("patientId", input.PatientId)
-                    //.Field("deviceId", input.DeviceId)
-                    .Field("heartRate", (int)(input.HeartRate ?? 0))
-                    .Field("systolicBp", (int)(input.Systolic ?? 0))
-                    .Field("diastolicBp", (int)(input.Diastolic ?? 0))
-                    .Field("spo2", (int)(input.Spo2 ?? 0))
-                    .Field("temperature", input.Temperature ?? 0)
-                    .Field("steps", (int)(input.Steps ?? 0))
-                    .Field("respiratoryRate", (int)(input.RespiratoryRate ?? 0))
-                    .Field("bloodGlucose", (int)(input.BloodGlucose ?? 0))
-                   // .Field("bloodPressure", $"{input.Systolic}/{input.Diastolic}")
-                    .Field("caloriesBurned", (int)(input.CaloriesBurned ?? 0))
-                    .Field("heartRateVariability", (int)(input.HeartRateVariability ?? 0))
-                    .Field("vo2Max", (int)(input.Vo2Max ?? 0))
-                    .Field("skinTemperature", input.SkinTemperature ?? 0)
-                    .Field("sleepDuration", input.SleepDuration ?? 0)
-                    .Field("sleepRestlessnessIndex", (int)(input.SleepRestlessnessIndex ?? 0))
-                    .Field("stepsGoalCompletion", (int)(input.StepsGoalCompletion ?? 0))
-                    .Field("oxygenDesaturationEvents", input.OxygenDesaturationEvents ?? 0)
-                    .Field("collectedDateTime", input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o"))    
-                    .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
 
-                await writeApi.WritePointAsync(point,_bucket,_org);
-            
+            var point = PointData
+                .Measurement("vitals")
+                .Tag("deviceId", input.DeviceId)
+                .Tag("patientId", input.PatientId)
+                //.Field("deviceId", input.DeviceId)
+                .Field("heartRate", (int)(input.HeartRate ?? 0))
+                .Field("systolicBp", (int)(input.Systolic ?? 0))
+                .Field("diastolicBp", (int)(input.Diastolic ?? 0))
+                .Field("spo2", (int)(input.Spo2 ?? 0))
+                .Field("temperature", input.Temperature ?? 0)
+                .Field("steps", (int)(input.Steps ?? 0))
+                .Field("respiratoryRate", (int)(input.RespiratoryRate ?? 0))
+                .Field("bloodGlucose", (int)(input.BloodGlucose ?? 0))
+                // .Field("bloodPressure", $"{input.Systolic}/{input.Diastolic}")
+                .Field("caloriesBurned", (int)(input.CaloriesBurned ?? 0))
+                .Field("heartRateVariability", (int)(input.HeartRateVariability ?? 0))
+                .Field("vo2Max", (int)(input.Vo2Max ?? 0))
+                .Field("skinTemperature", input.SkinTemperature ?? 0)
+                .Field("sleepDuration", input.SleepDuration ?? 0)
+                .Field("sleepRestlessnessIndex", (int)(input.SleepRestlessnessIndex ?? 0))
+                .Field("stepsGoalCompletion", (int)(input.StepsGoalCompletion ?? 0))
+                .Field("oxygenDesaturationEvents", input.OxygenDesaturationEvents ?? 0)
+                .Field("collectedDateTime", input.CollectedDateTime?.ToString("o") ?? DateTime.UtcNow.ToString("o"))
+                .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
+
+            await writeApi.WritePointAsync(point, _bucket, _org);
+
 
 
             return $"Saved Wearable data.";
@@ -425,7 +425,7 @@ namespace VirtualHealthAPI
         {
             if (!searchJson.TryGetProperty("entry", out var entries) || entries.GetArrayLength() == 0)
                 return null;
-           
+
             var patientJson = entries[0].GetProperty("resource");
             var patientId = patientJson.GetProperty("id").GetString() ?? throw new Exception("Patient ID missing.");
 
@@ -1749,7 +1749,7 @@ namespace VirtualHealthAPI
 
         public async Task<Dictionary<string, string>> GetPredictionUsingAIAsync(string patientId)
         {
-          
+
             var result = await MapObservationSummaryToHealthMetricsInputAsync(patientId);
             var jsonResult = JsonSerializer.Serialize(result);
             // can you assign the observation summary result to the HealthMetricsInput .
@@ -1866,10 +1866,10 @@ namespace VirtualHealthAPI
                         healthMetricsInput.RbcCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "6690-2": // wbc_count
-                        healthMetricsInput.WbcCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        healthMetricsInput.WbcCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "777-3": // platelet_count
-                        healthMetricsInput.PlateletCount = Convert.ToInt32(observation.Value.Split(" ")[0]);
+                        healthMetricsInput.PlateletCount = Convert.ToDouble(observation.Value.Split(" ")[0]);
                         break;
                     case "3016-3": // tsh
                         healthMetricsInput.Tsh = Convert.ToDouble(observation.Value.Split(" ")[0]);
@@ -2891,8 +2891,8 @@ namespace VirtualHealthAPI
                 {
                     coding = new[]
                     {
-                        new { 
-                            system = "http://terminology.hl7.org/CodeSystem/consentscope", 
+                        new {
+                            system = "http://terminology.hl7.org/CodeSystem/consentscope",
                             code = consent.Code,
                             display= consent.Display
                         }
@@ -2903,9 +2903,9 @@ namespace VirtualHealthAPI
                     new {
                         coding = new[]
                         {
-                            new { 
-                                system = "http://terminology.hl7.org/CodeSystem/consentcategorycodes", 
-                                code = consent.Code, 
+                            new {
+                                system = "http://terminology.hl7.org/CodeSystem/consentcategorycodes",
+                                code = consent.Code,
                                 display = consent.Display
                             }
                         }
@@ -2917,8 +2917,8 @@ namespace VirtualHealthAPI
                 {
                     coding = new[]
                     {
-                        new { 
-                            system = "http://terminology.hl7.org/CodeSystem/consentpolicy", 
+                        new {
+                            system = "http://terminology.hl7.org/CodeSystem/consentpolicy",
                             code = consent.IsSelected ? "opt-in" : "opt-out"
                         }
                     }
@@ -3036,5 +3036,124 @@ namespace VirtualHealthAPI
             var alarmNotificationList = await _s3alarmReader.GetAlarmNotification(patientId);
             return alarmNotificationList;
         }
+    
+        public async Task<string> CreatePatientPrescriptionAsync(Prescription prescription)
+        {
+            //prescription.PrescriptionId ??= Guid.NewGuid().ToString();
+            // prescription.DateWritten = DateTime.UtcNow;
+            var token = await GetAccessTokenAsync();
+
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            foreach (var medOrder in prescription.Medications)
+            {
+                // Build FHIR MedicationRequest resource for EACH medication
+                var noteList = new List<object>();
+
+                if (prescription.PharmacyInstructions != null)
+                {
+                    noteList.AddRange(prescription.PharmacyInstructions.Select(i => new { text = i }));
+                }
+
+                if (prescription.Warnings != null)
+                {
+                    noteList.AddRange(prescription.Warnings.Select(w => new { text = w }));
+                }
+
+                if (prescription.Pharmacy != null)
+                {
+                    noteList.Add(new
+                    {
+                        text = $"Pharmacy: {prescription.Pharmacy.Name}, Address: {prescription.Pharmacy.Address}, Phone: {prescription.Pharmacy.Phone}"
+                    });
+                }
+
+                var medicationRequest = new
+                {
+                    resourceType = "MedicationRequest",
+                    status = "active",
+                    intent = "order",
+                    authoredOn = DateTime.UtcNow,
+                    subject = new
+                    {
+                        reference = $"Patient/{prescription.Patient.PatientId}",
+                        display = $"{prescription.Patient.FirstName} {prescription.Patient.LastName}"
+                    },
+                    requester = new
+                    {
+                        display = prescription.Prescriber.Name
+                    },
+                    medicationCodeableConcept = new
+                    {
+                        text = medOrder.Medication.Name
+                    },
+                    dosageInstruction = new[]
+                    {
+                        new
+                        {
+                            text = $"{medOrder.Directions} for {medOrder.Duration}"
+                        }
+                    },
+                    dispenseRequest = new
+                    {
+                        quantity = new
+                        {
+                            value = medOrder.Quantity.Amount,
+                            unit = medOrder.Quantity.Unit
+                        },
+                        numberOfRepeatsAllowed = medOrder.Refills
+                    },
+                    note = noteList
+                };
+
+                // Serialize and POST
+                var json = JsonSerializer.Serialize(medicationRequest);
+                var response = await _httpClient.PostAsync($"{_apiBaseUrl}/MedicationRequest",
+                    new StringContent(json, Encoding.UTF8, "application/fhir+json"));
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    throw new Exception($"Failed to create MedicationRequest: {response.StatusCode} - {error}");
+                }
+            }
+
+            return "All medications submitted successfully to Medplum.";
+        }
+        public async Task<List<JsonElement>> GetPatientPrescriptionsAsync(string patientId)
+        {
+            var token = await GetAccessTokenAsync();
+
+            _httpClient.DefaultRequestHeaders.Clear();
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+            _httpClient.DefaultRequestHeaders.Add("Accept", "application/fhir+json");
+
+            var url = $"{_apiBaseUrl}/MedicationRequest?subject=Patient/{patientId}";
+            var response = await _httpClient.GetAsync(url);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                throw new Exception($"Failed to fetch prescriptions: {response.StatusCode} - {error}");
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var json = JsonDocument.Parse(content).RootElement;
+
+            var prescriptions = new List<JsonElement>();
+
+            if (json.TryGetProperty("entry", out var entries))
+            {
+                foreach (var entry in entries.EnumerateArray())
+                {
+                    prescriptions.Add(entry.GetProperty("resource"));
+                }
+            }
+
+            return prescriptions;
+        }
+       
     }
 }
