@@ -4,6 +4,7 @@ $ gcloud auth login
 
 gcloud artifacts repositories create virtual-health-api-repo --repository-format=docker --location=us-east4
 
+
 # run below command in google cloud shell
   gcloud projects add-iam-policy-binding dark-bit-459802-t7 \
   --member="serviceAccount:github-actions-deployer@dark-bit-459802-t7.iam.gserviceaccount.com" \
